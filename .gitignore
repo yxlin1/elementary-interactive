@@ -1,0 +1,11 @@
+# OS / 編輯器
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# OneDrive 同步衝突檔
+*-*的衝突複本*
+*conflicted copy*

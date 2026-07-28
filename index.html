@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>國小五年級 數學・自然 互動教具</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<button id="menuToggle" class="menu-toggle" aria-label="開啟章節選單">☰</button>
+<div id="scrim" class="scrim"></div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sb-head">
+      <h1><a id="homeLink" href="#" style="color:inherit;text-decoration:none">國小五年級 互動教具</a></h1>
+      <p class="sub">數學・自然　114 學年度<br>數學 康軒／自然 康軒</p>
+    </div>
+    <input id="search" class="sb-search" type="search" placeholder="搜尋單元或課綱條目（例：分數、S-5-7）" autocomplete="off">
+    <nav id="tree" class="sb-tree"></nav>
+  </aside>
+
+  <main id="content" class="content"></main>
+
+</div>
+
+<!-- 本地 three.js（r128 UMD build），完全離線可用 -->
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+
+<!-- 資料與共用工具 -->
+<script src="js/curriculum.js"></script>
+<script src="js/kit.js"></script>
+
+<!-- 已建置的章節教具
+     m4b-*／s4a-* 這三支屬於 js/curriculum.js 裡設為 hidden 的年級，
+     不會出現在章節樹，但仍然載入——把該年級的 hidden 改成 false 就立刻可用。 -->
+<script src="chapters/m4b-u8-fraction.js"></script>
+<script src="chapters/m5a-u1-decimal.js"></script>
+<script src="chapters/m5a-factors.js"></script>
+<script src="chapters/m5a-fractions.js"></script>
+<script src="chapters/m5a-u5-polygon.js"></script>
+<script src="chapters/m5a-u7-symmetry.js"></script>
+<script src="chapters/m5a-u8-arith.js"></script>
+<script src="chapters/m5a-u9-area.js"></script>
+<script src="chapters/m5a-u10-solids.js"></script>
+<script src="chapters/m5b-u1-volume.js"></script>
+<script src="chapters/m5b-u2-fraction-calc.js"></script>
+<script src="chapters/m5b-decimal.js"></script>
+<script src="chapters/m5b-solid.js"></script>
+<script src="chapters/m5b-misc.js"></script>
+<script src="chapters/s4a-u1-moon.js"></script>
+<script src="chapters/s4a-u3-light.js"></script>
+<script src="chapters/s5a-u1-sun.js"></script>
+<script src="chapters/s5a-u2-plant.js"></script>
+<script src="chapters/s5a-u3-heat.js"></script>
+<script src="chapters/s5a-u4-solution.js"></script>
+<script src="chapters/s5b-u1-force.js"></script>
+<script src="chapters/s5b-u2-earth.js"></script>
+
+<!-- 路由與畫面組裝（必須放最後） -->
+<script src="js/app.js"></script>
+
+</body>
+</html>
