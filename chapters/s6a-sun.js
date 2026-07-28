@@ -8,7 +8,7 @@
 
 Kit.register('s6a-sun', {
 
-  intro: '你站在正中央，四周是東南西北。拖曳「時刻」看太陽一天怎麼走，換「季節」看夏天和冬天的路線差多少。地上那根桿子的影子會跟著變。',
+  intro: '正中央那個<b>小人就是你</b>，四周是東南西北，地平線上是遠處的房子和樹。拖曳「時刻」看太陽一天怎麼走，換「季節」看夏天和冬天的路線差多少；小人和旁邊竿子的影子會跟著變。視角切到<b>「第一人稱」</b>就會變成用小人的眼睛抬頭看。',
 
   build: function (host) {
     const stage = Kit.el('div', { class: 'stage' });
@@ -21,7 +21,9 @@ Kit.register('s6a-sun', {
 
     const LAT = 23.0;                       // 觀測緯度：北緯 23°，剛好落在北回歸線（23.5°）以南
     const R = 7;                            // 天球半徑
-    const GNOMON = 1.4;                     // 竿高（公尺，示意）
+    // 竿高＝小人身高。這是示意用的尺度，不是真實比例：天球半徑 7 代表「整片天空」，
+    // 若照真實比例畫，一個人在畫面上只會剩幾個像素，看不出「誰站在中間」。
+    const GNOMON = 1.9;
     const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 
     // 預設刻意不用「夏至正午」——那時高度角 89.6°、方位角 0°，兩個扇形都會塌掉，
@@ -117,24 +119,45 @@ Kit.register('s6a-sun', {
     // 往外推到 R+1.7、貼近地面：春分時日出正東、日落正西，那兩個時刻標籤
     // 會剛好落在「東」「西」上，不推開就整團疊在一起。
     const LR = R + 1.7;
-    label('北', NORTH.clone().multiplyScalar(LR).setY(.2), '#8fd0ff');    // -Z
-    label('南', NORTH.clone().multiplyScalar(-LR).setY(.2), '#8fd0ff');   // +Z
-    label('東', EAST.clone().multiplyScalar(LR).setY(.2), '#ffd166');     // +X
-    label('西', EAST.clone().multiplyScalar(-LR).setY(.2), '#ffd166');    // -X
+    // 高度 .9 而不是貼地：第一人稱時眼睛在 1.7 高，方位標若貼在地面上
+    // 會落到畫面下緣外，而方位正是第一人稱最需要的參考。
+    label('北', NORTH.clone().multiplyScalar(LR).setY(.9), '#8fd0ff');    // -Z
+    label('南', NORTH.clone().multiplyScalar(-LR).setY(.9), '#8fd0ff');   // +Z
+    label('東', EAST.clone().multiplyScalar(LR).setY(.9), '#ffd166');     // +X
+    label('西', EAST.clone().multiplyScalar(-LR).setY(.9), '#ffd166');    // -X
 
-    // 觀測者（竿子）
+    /* 地平線上的遠景聚落。沒有它的話，畫面只是一個抽象半球，
+       孩子不容易把它跟「我站在院子裡抬頭」連起來。刻意做得矮，
+       擋掉的仰角不到 10°，日出日落還看得到。看不順眼可以按鈕關掉。 */
+    const town = Kit.scenery(R, { count: 26 });
+    S.add(town);
+
+    // 文字牌維持固定的螢幕大小（26 大約是「斜看」時的相機距離）
+    Kit.keepSpriteSize(S, 26);
+
+    // 觀測者小人：站在正中央，就是所有角度的頂點，也是第一人稱的視點
+    const me = Kit.person(GNOMON);
+    S.add(me);
+    const EYE = new THREE.Vector3(0, GNOMON * .895, 0);   // 小人的眼睛高度
+
+    // 竿子：量影子的工具，讓開中心站到觀測者的東南邊
+    const POLE_AT = new THREE.Vector3(2.5, 0, 2.5);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, GNOMON, 12),
       new THREE.MeshLambertMaterial({ color: 0xe8eefc }));
-    pole.position.y = GNOMON / 2;
+    pole.position.set(POLE_AT.x, GNOMON / 2, POLE_AT.z);
     S.add(pole);
 
-    // 影子
+    // 影子（竿子的：粗、附端點；小人的：細一點，讓小人不會像浮在空中）
     const shadowGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
     const shadow = new THREE.Line(shadowGeo, new THREE.LineBasicMaterial({ color: 0x111a2a, linewidth: 3 }));
     S.add(shadow);
     const shadowDot = new THREE.Mesh(new THREE.SphereGeometry(.09, 10, 8),
       new THREE.MeshBasicMaterial({ color: 0x0b1220 }));
     S.add(shadowDot);
+    const meShadowGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const meShadow = new THREE.Line(meShadowGeo,
+      new THREE.LineBasicMaterial({ color: 0x1a2438, transparent: true, opacity: .85 }));
+    S.add(meShadow);
 
     // 太陽
     const sunBall = new THREE.Mesh(new THREE.SphereGeometry(.36, 20, 16),
@@ -284,20 +307,35 @@ Kit.register('s6a-sun', {
       });
       buildMarkers();
 
-      // 影子
+      // 小人面向太陽（面向 -Z 是北，轉 -方位角 就朝向太陽的水平方向）
+      if (up) me.rotation.y = -s.az;
+
+      // 影子：竿子和小人各一條，方向都是太陽的反方向
       if (up && altDeg > 0.5) {
         const len = GNOMON / Math.tan(s.alt);
-        const clipped = Math.min(len, R - .2);
-        // 影子在太陽的反方向：太陽水平方向為 (sin az, 0, −cos az)，取負號
-        const dir = new THREE.Vector3(-Math.sin(s.az), 0, Math.cos(s.az)).multiplyScalar(clipped);
-        shadowGeo.setFromPoints([new THREE.Vector3(0, .02, 0), new THREE.Vector3(dir.x, .02, dir.z)]);
-        shadowGeo.attributes.position.needsUpdate = true;
-        shadowDot.position.set(dir.x, .02, dir.z);
-        shadow.visible = shadowDot.visible = true;
-        var shadowText = (len > R ? '很長（超出畫面）' : len.toFixed(2) + ' 倍竿高') +
-          '，方向朝<b>' + azName((azDeg + 180) % 360) + '</b>';
+        // 太陽水平方向為 (sin az, 0, −cos az)，影子取反向
+        const u = new THREE.Vector3(-Math.sin(s.az), 0, Math.cos(s.az));
+        // 影子不要畫到地面圓外面。解 |base + u·t| = Rg 取正根，
+        // 這樣兩條影子都剛好停在地面邊緣，不會一長一短看起來像算錯。
+        const Rg = R - .15;
+        function reach(base) {
+          const bu = base.dot(u);
+          return -bu + Math.sqrt(Math.max(0, bu * bu + Rg * Rg - base.lengthSq()));
+        }
+        const O0 = new THREE.Vector3(0, .02, 0);
+        const pTip = POLE_AT.clone().addScaledVector(u, Math.min(len, reach(POLE_AT))).setY(.02);
+        shadowGeo.setFromPoints([POLE_AT.clone().setY(.02), pTip]);
+        shadowDot.position.copy(pTip);
+        meShadowGeo.setFromPoints([O0, u.clone().multiplyScalar(Math.min(len, Rg)).setY(.02)]);
+        shadow.visible = shadowDot.visible = meShadow.visible = true;
+        // 「幾倍竿高」是<b>比值</b> = 影長 ÷ 竿高 = 1/tan(高度角)，
+        // 和竿子畫多高無關。直接印 len 會多乘一個竿高，是錯的。
+        var shadowText = (len / GNOMON).toFixed(2) + ' 倍竿高' +
+          (len > Rg ? '（已超出地面，畫面上被截短了）' : '') +
+          '，方向朝<b>' + azName((azDeg + 180) % 360) + '</b>' +
+          '（小人的影子也朝同一邊——同一時刻，所有直立物體的影子方向都一樣）';
       } else {
-        shadow.visible = shadowDot.visible = false;
+        shadow.visible = shadowDot.visible = meShadow.visible = false;
         shadowText = '太陽在地平線下，沒有影子';
       }
 
@@ -417,7 +455,24 @@ Kit.register('s6a-sun', {
     // 天球半徑 7 ＋ 方位標籤 8.7 ＋ 文字牌本身的寬度，取 10 才框得住
     const FIT_R = 10;
     function setView(v) {
-      // 這裡只決定「從哪個方向看」，距離交給 S.fit() 依畫面比例自動算，
+      // 第一人稱：相機搬到小人的眼睛，等於「蹲下來用他的眼睛看」。
+      // 這時要把小人藏起來——不然滿畫面都是自己的後腦杓。
+      me.visible = (v !== 'fp');
+      if (v === 'fp') {
+        const s = sunPos(hour, DECL[season]);
+        Kit.firstPerson(S, {
+          eye: EYE,
+          az: s.az,
+          fov: 66,
+          // 取太陽高度的一半、再夾在 8°～28°。直接照太陽的高度抬頭的話，
+          // 畫面會只剩天空——地面、房子、方位標全部掉出下緣，就沒有
+          // 「我站在地上」的參考了。折一半可以讓地平線和太陽同時在畫面裡。
+          pitch: Math.min(Math.max(s.alt * .5, .14), .49)
+        });
+        return;
+      }
+      Kit.exitFirstPerson(S);
+      // 以下只決定「從哪個方向看」，距離交給 S.fit() 依畫面比例自動算，
       // 手機直式（長寬比 < 1）時天球才不會被左右切掉。
       //
       // 北是 -Z。要讓「北在螢幕上方」，相機必須放在觀測者的<b>南邊（+Z）往北看</b>；
@@ -436,6 +491,7 @@ Kit.register('s6a-sun', {
     }
     const viewSeg = Kit.segmented('視角', [
       { label: '斜看（立體）', value: 'iso' },
+      { label: '第一人稱（小人的眼睛）', value: 'fp' },
       { label: '朝南看', value: 'south' },
       { label: '俯視（像地圖）', value: 'map' }
     ], setView, 'iso');
@@ -444,6 +500,12 @@ Kit.register('s6a-sun', {
       showPaths = !showPaths;
       pathBtn.textContent = showPaths ? '隱藏三季路徑' : '顯示三季路徑';
       update();
+    });
+
+    // 房子雖然矮，日出日落剛好在某棟後面時還是會擋到，留一個開關
+    const townBtn = Kit.button('隱藏地景', function () {
+      town.visible = !town.visible;
+      townBtn.textContent = town.visible ? '隱藏地景' : '顯示地景';
     });
 
     let playing = false, timer = null;
@@ -465,6 +527,7 @@ Kit.register('s6a-sun', {
     controls.appendChild(playBtn);
     controls.appendChild(viewSeg.wrap);
     controls.appendChild(pathBtn);
+    controls.appendChild(townBtn);
     host.appendChild(controls);
     host.appendChild(readout);
 
@@ -477,6 +540,7 @@ Kit.register('s6a-sun', {
       '<span style="color:#ffd166">━ 黃</span>　你的<b>視線</b>（從你直接看向太陽）<br>' +
       '<span style="color:#cfd9f0">┈ 白虛線</span>　太陽<b>垂直落到地面</b>；落點旁的小方角代表和地面垂直<br>' +
       '<span style="color:#6ee7b7">━ 綠</span>　綠色扇形就是<b>高度角</b>（從地面方向<b>抬頭</b>到視線，站起來的那一片）<br>' +
+      '<span style="color:#8b95ab">━ 深色</span>　小人和竿子的<b>影子</b>——兩條永遠<b>平行</b>，方向都和太陽相反<br>' +
       '<span style="color:var(--muted)">三季路徑：<span style="color:#fb7185">紅＝夏至</span>、' +
       '<span style="color:#fbbf24">黃＝春分／秋分</span>、<span style="color:#60a5fa">藍＝冬至</span>' +
       '（覺得太亂可以按「隱藏三季路徑」，只留角度）</span>';
@@ -487,10 +551,15 @@ Kit.register('s6a-sun', {
       html: '把黃線、紫線、白虛線看成一個<b>直角三角形</b>：躺在地上那條（紫）決定太陽在哪個<b>方向</b>，' +
         '站起來那個角（綠）決定太陽有<b>多高</b>。兩個數字合起來就能唯一指出太陽在天空的位置——' +
         '這就是課本教的「用方位和高度角描述太陽的位置」。' +
-        '<br>🧭 三個<b>視角</b>按鈕可以隨時把畫面轉回看得懂的角度：' +
+        '<br>🧭 四個<b>視角</b>按鈕可以隨時把畫面轉回看得懂的角度：' +
         '<b>「斜看」（預設）和「俯視」都是<u>北在上方、東在右邊</u></b>，方位和看地圖一致；' +
         '「朝南看」則是你在臺灣<b>實際抬頭</b>的樣子——面向南方時北在你背後，' +
-        '所以畫面會變成東在左、西在右（太陽從左邊升起、右邊落下）。'
+        '所以畫面會變成東在左、西在右（太陽從左邊升起、右邊落下）。' +
+        '<br>🧍 <b>「第一人稱」</b>把鏡頭放到小人的眼睛高度，直接朝太陽的方向看——' +
+        '這是最接近真實抬頭的一種。進去以後<b>拖曳畫面就是轉頭</b>（縮放會關掉，免得穿出頭外）；' +
+        '調完時刻想讓鏡頭重新對準太陽，<b>再按一次「第一人稱」</b>就好。' +
+        '從第一人稱切回「斜看」，可以看出同一件事的兩種畫法：' +
+        '一種是你眼睛看到的，一種是把整個天空攤開來的示意圖。'
     }));
 
     setView('iso');     // 和「視角」預設鍵的初始選項一致
@@ -503,6 +572,7 @@ Kit.register('s6a-sun', {
     { ask: '「中午的影子最短還是最長？為什麼？」', why: '最短，因為太陽最高。把時刻拉到 12 時，再拉到 6 時和 18 時比較影子長度，孩子自己就會歸納出「太陽越高、影子越短」。' },
     { ask: '「夏天為什麼比較熱？是因為地球離太陽比較近嗎？」', why: '不是距離，是<b>太陽高度角</b>。夏至時這裡正午的高度角接近 90°（幾乎正上方），光集中；冬至只有 43° 左右，光斜斜地照，同樣的陽光攤開在更大的地面上。' },
     { ask: '「影子指向哪一邊？」', why: '影子永遠在太陽的<b>反方向</b>。早上太陽在東，影子朝西；中午太陽在南，影子朝北。可以真的拿一支筆在陽光下驗證。' },
+    { ask: '切到「第一人稱」，問：「太陽在你的左邊還是右邊？」再切回「斜看」對照。', why: '同一個時刻、同一個太陽，<b>看起來在哪一邊會跟著你面向哪裡而變</b>——這正是「東為什麼有時在左、有時在右」的癥結。先讓孩子在第一人稱裡說出答案，再切回俯視看那條紫色的方位角，兩個畫面對起來就通了。' },
     { ask: '（延伸 INe-Ⅲ-7）「陽光是什麼顏色？」', why: '看起來是白的，其實是<b>各種色光混合</b>的。用三稜鏡或下雨後的彩虹可以把它分開。這一條也是五上「太陽」單元會帶到的內容。' }
   ],
 

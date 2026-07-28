@@ -12,17 +12,19 @@
 
 Kit.register('sky-stars', {
 
-  intro: '你站在地上抬頭看北方的夜空。拖曳<b>時刻</b>看星星怎麼繞著<b>北極星</b>轉，換<b>季節</b>看看到的星座怎麼換。',
+  intro: '正中央那個<b>小人就是你</b>，站在地上、面向北方，四周是遠處亮著燈的房子。拖曳<b>時刻</b>看星星怎麼繞著<b>北極星</b>轉，換<b>季節</b>看看到的星座怎麼換。視角切到<b>「第一人稱」</b>就會變成用小人的眼睛抬頭看夜空。',
 
   build: function (host) {
     const stage = Kit.el('div', { class: 'stage' });
     host.appendChild(stage);
     const S = Kit.scene3d(stage, {
-      camera: [0, 3, 15], target: [0, 4.5, 0], height: 430,
+      // 取景球心抬到 y=3（不是天球中心 0）：主角是天空，地面以下不必留白。
+      // 半徑 10.5 剛好框住天球（9.5）與外圈的方位標（9.9）。
+      camera: [0, 3, 15], target: [0, 3, 0], height: 430,
       grid: false, bg: 0x04060e, lights: false
     });
     S.add(new THREE.AmbientLight(0xffffff, 1));
-    S.fit(11);
+    S.fit(10.5);
 
     const readout = Kit.el('div', { class: 'readout' });
     const controls = Kit.el('div', { class: 'controls' });
@@ -92,12 +94,28 @@ Kit.register('sky-stars', {
     }
 
     /* 場景：地面與天球 */
+    const SKY_R = 9.5;
     const ground = new THREE.Mesh(new THREE.CircleGeometry(9.6, 48),
       new THREE.MeshBasicMaterial({ color: 0x10261a, side: THREE.DoubleSide }));
     ground.rotation.x = -Math.PI / 2;
     S.add(ground);
-    S.add(new THREE.Mesh(new THREE.SphereGeometry(9.5, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+    S.add(new THREE.Mesh(new THREE.SphereGeometry(SKY_R, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x15294d, wireframe: true, transparent: true, opacity: .13 })));
+
+    /* 夜晚的遠景聚落（暗色剪影＋幾扇亮著的窗）。
+       擋掉的仰角約 12°，北極星在 23° 之上，不會被遮到。
+       低空的星座偶爾會被房子擋住——那就是真實觀星的情形，也留了開關。 */
+    const town = Kit.scenery(SKY_R, { night: true, count: 26, scale: .06 });
+    S.add(town);
+
+    // 星座名、北極星等文字牌維持固定的螢幕大小（29 約為「斜看」時的相機距離）
+    Kit.keepSpriteSize(S, 29);
+
+    // 觀測者小人：站在正中央、面向北方（-Z），也就是北極星的方向
+    const PH = 2.2;                          // 示意尺度：太寫實的話畫面上只剩幾個像素
+    const me = Kit.person(PH, { night: true });
+    S.add(me);
+    const EYE = new THREE.Vector3(0, PH * .895, 0);
 
     function label(text, pos, color, scale) {
       const c = document.createElement('canvas');
@@ -115,9 +133,10 @@ Kit.register('sky-stars', {
       return sp;
     }
     // 方位
+    // 高度 1.0：第一人稱的眼睛在 2.0 高，貼地的方位標會掉出畫面下緣
     [['北', 0, 0, -9.9, '#8fd0ff'], ['南', 0, 0, 9.9, '#8fd0ff'],
      ['東', 9.9, 0, 0, '#ffd166'], ['西', -9.9, 0, 0, '#ffd166']]
-      .forEach(([t, x, y, z, c]) => S.add(label(t, new THREE.Vector3(x, .4, z), c, 1.7)));
+      .forEach(([t, x, y, z, c]) => S.add(label(t, new THREE.Vector3(x, 1.0, z), c, 1.7)));
 
     /* 背景散星 */
     (function bg() {
@@ -248,11 +267,42 @@ Kit.register('sky-stars', {
       } else clearInterval(timer);
     }, 'primary');
 
+    /* ---- 視角 ----
+       「斜看」是從外面看整個天球的示意圖；「第一人稱」則把鏡頭放到小人的
+       眼睛，朝正北抬頭 35°——北極星（仰角約 23°）和地平線會同時在畫面裡，
+       這正是實際站在院子裡找北極星時看到的樣子。 */
+    function setView(v) {
+      me.visible = (v !== 'fp');
+      if (v === 'fp') {
+        // 對準北極星（仰角約等於緯度 23°）。抬得比這更高的話，地平線和
+        // 方位標會掉出畫面，反而看不出「北極星在正北方多高」。
+        Kit.firstPerson(S, { eye: EYE, az: 0, pitch: 23 * Math.PI / 180, fov: 66 });
+        return;
+      }
+      Kit.exitFirstPerson(S);
+      S.camera.up.set(0, 1, 0);
+      S.camera.position.set(0, 5, 15);
+      S.controls.target.set(0, 3, 0);
+      S.controls.update();
+      S.fit(10.5);
+    }
+    const viewSeg = Kit.segmented('視角', [
+      { label: '斜看（看整個天球）', value: 'iso' },
+      { label: '第一人稱（小人的眼睛）', value: 'fp' }
+    ], setView, 'iso');
+
+    const townBtn = Kit.button('隱藏地景', function () {
+      town.visible = !town.visible;
+      townBtn.textContent = town.visible ? '隱藏地景' : '顯示地景';
+    });
+
     controls.appendChild(seasonSeg.wrap);
     controls.appendChild(hourCtl.wrap);
     controls.appendChild(playBtn);
+    controls.appendChild(viewSeg.wrap);
     controls.appendChild(lineBtn);
     controls.appendChild(trailBtn);
+    controls.appendChild(townBtn);
     host.appendChild(controls);
     host.appendChild(readout);
 
@@ -270,7 +320,11 @@ Kit.register('sky-stars', {
     host.appendChild(Kit.el('p', {
       class: 'hint',
       html: '為什麼<b>四季星空不一樣</b>？因為地球<b>繞太陽公轉</b>，不同季節的晚上，地球背對太陽的那一面朝向宇宙的<b>不同方向</b>，' +
-        '所以看到的星座就換了一批。（不是星星跑掉了。）'
+        '所以看到的星座就換了一批。（不是星星跑掉了。）' +
+        '<br>🧍 <b>「第一人稱」</b>把鏡頭放到小人的眼睛，朝正北抬頭——' +
+        '這就是實際站在院子裡找北極星時看到的畫面，<b>拖曳就是轉頭</b>。' +
+        '先在第一人稱裡按「播放一整晚」看星星怎麼轉，再切回「斜看」看整個天球一起轉，' +
+        '兩個畫面對起來，「星星繞著北極星轉」這件事會比只看示意圖清楚很多。'
     }));
 
     rebuild();
@@ -284,6 +338,8 @@ Kit.register('sky-stars', {
     { ask: '切換四個季節：「為什麼冬天看得到獵戶座，夏天看不到？」', why: '因為地球<b>繞太陽公轉</b>，不同季節夜晚朝向宇宙的方向不同。不是星星消失了，是白天那一側看不到。' },
     { ask: '「光年是時間還是距離？」', why: '<b>距離</b>。這是最常錯的名詞。光走一年的距離，約 9 兆 5 千億公里。' },
     { ask: '「北極星離我們 430 光年，代表什麼？」', why: '你現在看到的光是 <b>430 年前</b>出發的——看星星就是在看過去。這個想法通常會讓孩子安靜三秒鐘。' },
+    { ask: '切到「第一人稱」，問：「北極星大概在你頭頂到地平線的哪個高度？」', why: '大約<b>四分之一</b>的位置——仰角約 23 度，剛好等於臺灣的<b>緯度</b>。第一人稱看的角度和真的站在院子裡一樣，先在這裡建立印象，晚上出門就找得到。' },
+    { ask: '在第一人稱按「播放一整晚」，問：「哪些星星轉一整晚都沒有落下？」', why: '靠近北極星的那一圈（<b>拱極星</b>）。它們繞的圈子太小，碰不到地平線，所以整晚都在。離北極星越遠的星，圈子越大，就會從東邊升起、西邊落下。' },
     { ask: '真的去看一次：找個暗一點的地方，先找北斗七星，再用斗口兩顆星延伸五倍找北極星。', why: '課本教的方法，實際做一次就終生不忘。手機的星空 App 可以輔助對照。' }
   ],
 
