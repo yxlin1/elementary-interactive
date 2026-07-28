@@ -1,5 +1,5 @@
 /* ============================================================
-   五上 自然（康軒）第 3 單元　熱
+   五下 自然（康軒）第 4 單元　熱的作用與傳播
    課綱 INa-Ⅲ-8「熱由高溫處往低溫處傳播，傳播的方式有傳導、對流和輻射，
                   生活中可運用不同的方法保溫與散熱。」
         INa-Ⅲ-5「不同形式的能量可以相互轉換，但總量不變。」
@@ -7,7 +7,7 @@
    教具：三種熱傳播方式的動畫模擬 ＋ 熱脹冷縮示範。
    ============================================================ */
 
-Kit.register('s5a-u3', {
+Kit.register('s5b-u4', {
 
   intro: '熱一定<b>從高溫流向低溫</b>，方式有三種。切換看：金屬棒的<b>傳導</b>、水和空氣的<b>對流</b>、太陽的<b>輻射</b>，還有<b>熱脹冷縮</b>。',
 
@@ -280,8 +280,121 @@ Kit.register('s5a-u3', {
         '• 乒乓球凹了泡熱水會鼓回來 —— 裡面的空氣受熱膨脹</span>';
     }
 
+    /* ---------- 保溫與散熱（對應單元活動 03）---------- */
+    const KEEP = {
+      thermos: {
+        n: '保溫瓶', goal: '保溫',
+        parts: [
+          ['雙層瓶壁中間抽成真空', '傳導', '沒有物質就傳不了熱'],
+          ['真空層也沒有空氣可流動', '對流', '空氣跑不動就帶不走熱'],
+          ['內壁鍍成亮面（像鏡子）', '輻射', '把熱輻射反射回去'],
+          ['瓶蓋用塑膠、不用金屬', '傳導', '塑膠是熱的不良導體']
+        ],
+        note: '保溫瓶厲害的地方是<b>三條路一次全堵住</b>——這就是為什麼它比一般杯子強那麼多。'
+      },
+      coat: {
+        n: '羽絨衣 / 毛衣', goal: '保溫',
+        parts: [
+          ['蓬鬆的羽絨鎖住大量空氣', '傳導', '<b>空氣</b>才是主角，它是很差的熱導體'],
+          ['空氣被關在小格子裡不能流動', '對流', '不流動就帶不走體溫']
+        ],
+        note: '真正保暖的<b>不是羽毛，是羽毛之間的空氣</b>。所以羽絨衣壓扁了、濕掉了就不保暖——空氣被擠掉或被水取代了。'
+      },
+      cup: {
+        n: '紙杯套 / 隔熱杯墊', goal: '保溫（也保護手）',
+        parts: [
+          ['多一層瓦楞紙，中間有空氣', '傳導', '紙和空氣都不導熱，手不會燙'],
+        ],
+        note: '同一個原理反過來用：不是為了讓飲料保溫，是為了<b>不讓熱傳到你的手</b>。'
+      },
+      fin: {
+        n: '散熱片（電腦、機車引擎）', goal: '散熱',
+        parts: [
+          ['做成很多薄片', '傳導', '增加<b>表面積</b>，能接觸到更多空氣'],
+          ['薄片之間留空隙讓空氣流過', '對流', '把熱空氣帶走，換冷空氣進來'],
+          ['材質用鋁或銅', '傳導', '金屬是良導體，熱才傳得出來']
+        ],
+        note: '散熱和保溫是<b>同一套原理反過來用</b>：保溫要擋住三條路，散熱要把三條路打開。'
+      },
+      fan: {
+        n: '電風扇 / 冷氣', goal: '散熱',
+        parts: [
+          ['吹動空氣，強迫換氣', '對流', '把貼在皮膚上的熱空氣吹走'],
+          ['冷氣裝在高處', '對流', '冷空氣重會下沉，才能循環整個房間']
+        ],
+        note: '⚠️ 電風扇<b>不會讓房間變涼</b>，它只是加快對流、幫你把熱帶走，所以你覺得涼。溫度計放在風扇前不會降。'
+      },
+      color: {
+        n: '淺色衣服 / 屋頂隔熱漆', goal: '散熱',
+        parts: [
+          ['淺色、亮面把陽光反射掉', '輻射', '吸收的輻射熱變少']
+        ],
+        note: '夏天穿淺色比較涼、屋頂刷白色隔熱漆，走的都是<b>輻射</b>這條路。'
+      }
+    };
+    let keepKey = 'thermos';
+    const PATH_COLOR = { '傳導': '#fb7185', '對流': '#60a5fa', '輻射': '#fbbf24' };
+
+    function drawKeep() {
+      const ctx = cv.ctx;
+      const K = KEEP[keepKey];
+      ctx.fillStyle = '#93a3c4'; ctx.font = '13px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('熱只有三條路可以走。想保溫就把路堵住，想散熱就把路打開', 16, 22);
+
+      // 左側：三條路的狀態燈
+      const blocked = {};
+      K.parts.forEach(p => blocked[p[1]] = true);
+      ['傳導', '對流', '輻射'].forEach((p, i) => {
+        const y = 60 + i * 62;
+        const on = !!blocked[p];
+        ctx.fillStyle = on ? PATH_COLOR[p] : '#1b2740';
+        ctx.globalAlpha = on ? .22 : 1;
+        ctx.fillRect(20, y, 150, 50);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = on ? PATH_COLOR[p] : '#26355a';
+        ctx.lineWidth = on ? 2.5 : 1;
+        ctx.strokeRect(20, y, 150, 50);
+        ctx.fillStyle = on ? PATH_COLOR[p] : '#3a4c73';
+        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(p, 34, y + 25);
+        ctx.font = '12px "Microsoft JhengHei", sans-serif';
+        ctx.fillText(on ? (K.goal === '散熱' ? '↑ 加強' : '✕ 擋住') : '（沒用到）', 86, y + 25);
+      });
+
+      // 右側：每個設計對應哪條路
+      ctx.fillStyle = '#e8eefc'; ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(K.n, 200, 46);
+      ctx.fillStyle = K.goal === '散熱' ? '#fb7185' : '#34d399';
+      ctx.font = 'bold 14px "Microsoft JhengHei", sans-serif';
+      ctx.fillText('目的：' + K.goal, 200, 72);
+
+      K.parts.forEach((p, i) => {
+        const y = 104 + i * 48;
+        ctx.fillStyle = PATH_COLOR[p[1]];
+        ctx.beginPath(); ctx.arc(210, y + 10, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8eefc'; ctx.font = '14px "Microsoft JhengHei", sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(p[0], 226, y);
+        ctx.fillStyle = PATH_COLOR[p[1]];
+        ctx.font = 'bold 12px "Microsoft JhengHei", sans-serif';
+        ctx.fillText('擋／用的是「' + p[1] + '」', 226, y + 20);
+      });
+
+      readout.innerHTML =
+        '<div class="big">' + K.n + '　—　目的是<b style="color:' +
+        (K.goal === '散熱' ? '#fb7185' : '#34d399') + '">' + K.goal + '</b></div>' +
+        K.parts.map(p => '<b style="color:' + PATH_COLOR[p[1]] + '">' + p[1] + '</b>：' +
+          p[0] + '　→　' + p[2]).join('<br>') + '<br><br>' + K.note +
+        '<br><span style="color:var(--muted)">課綱 INa-Ⅲ-8 的最後一句就是「生活中可運用不同的方法<b>保溫與散熱</b>」。' +
+        '看到任何保溫／散熱的設計，就問：<b>它在處理傳導、對流，還是輻射？</b></span>';
+    }
+
     function paint() {
       cv.clear('#0e1726');
+      if (mode === 'keep') { drawKeep(); return; }
       if (mode === 'cond') drawCond();
       else if (mode === 'conv') drawConv();
       else if (mode === 'rad') drawRad();
@@ -289,23 +402,31 @@ Kit.register('s5a-u3', {
     }
 
     function loop() {
-      if (playing && mode !== 'expand') { t += 0.016; if (t > 8) t = 0; }
+      // 只有動畫模式需要推進時間；熱脹冷縮與保溫散熱是靜態的
+      if (playing && mode !== 'expand' && mode !== 'keep') { t += 0.016; if (t > 8) t = 0; }
       paint();
       raf = requestAnimationFrame(loop);
     }
 
-    const modeSeg = Kit.segmented('傳播方式', [
-      { label: '傳導（固體）', value: 'cond' },
-      { label: '對流（液體、氣體）', value: 'conv' },
-      { label: '輻射（不需介質）', value: 'rad' },
-      { label: '熱脹冷縮', value: 'expand' }
+    // 模式順序對應課本三個活動：① 溫度與體積 ② 熱如何傳播 ③ 保溫與散熱
+    const modeSeg = Kit.segmented('模式', [
+      { label: '① 熱脹冷縮', value: 'expand' },
+      { label: '② 傳導（固體）', value: 'cond' },
+      { label: '② 對流（液體、氣體）', value: 'conv' },
+      { label: '② 輻射（不需介質）', value: 'rad' },
+      { label: '③ 保溫與散熱', value: 'keep' }
     ], function (v) {
       mode = v; t = 0;
       matSeg.wrap.style.display = v === 'cond' ? '' : 'none';
       tempCtl.wrap.style.display = v === 'expand' ? '' : 'none';
-      resetBtn.style.display = v === 'expand' ? 'none' : '';
+      keepSeg.wrap.style.display = v === 'keep' ? '' : 'none';
+      resetBtn.style.display = (v === 'expand' || v === 'keep') ? 'none' : '';
       paint();
     }, mode);
+
+    const keepSeg = Kit.segmented('看哪一個', Object.keys(KEEP).map(k => ({ label: KEEP[k].n, value: k })),
+      function (v) { keepKey = v; paint(); }, keepKey);
+    keepSeg.wrap.style.display = 'none';
 
     const matSeg = Kit.segmented('材質', Object.keys(MAT).map(k => ({ label: MAT[k].n, value: k })),
       function (v) { material = v; t = 0; }, material);
@@ -315,6 +436,7 @@ Kit.register('s5a-u3', {
 
     controls.appendChild(modeSeg.wrap);
     controls.appendChild(matSeg.wrap);
+    controls.appendChild(keepSeg.wrap);
     controls.appendChild(tempCtl.wrap);
     controls.appendChild(resetBtn);
     host.appendChild(controls);
@@ -336,7 +458,11 @@ Kit.register('s5a-u3', {
     { ask: '「同樣室溫，為什麼摸鐵比摸木頭冰？」', why: '兩者<b>溫度一樣</b>！只是鐵把你手上的熱導走得快，所以感覺冰。這一題能一次治好「金屬比較冷」的迷思。' },
     { ask: '對流模式：「為什麼冷氣裝在高處，暖爐放在地上？」', why: '冷空氣重會下沉，熱空氣輕會上升。裝反了整個房間都不會均勻。' },
     { ask: '「太陽的熱怎麼穿過太空傳過來？太空沒有空氣啊。」', why: '靠<b>輻射</b>。這是三種方式裡唯一不需要介質的，也是最容易被忽略的一種。' },
-    { ask: '「瓶蓋轉不開時，為什麼泡熱水就開得了？」', why: '金屬蓋受熱膨脹得比玻璃瓶口多，就鬆了。這是熱脹冷縮最實用的一招，可以真的試一次。' }
+    { ask: '「瓶蓋轉不開時，為什麼泡熱水就開得了？」', why: '金屬蓋受熱膨脹得比玻璃瓶口多，就鬆了。這是熱脹冷縮最實用的一招，可以真的試一次。' },
+    { ask: '切到「保溫與散熱」，拿家裡的保溫瓶問：「它用了幾種方法擋住熱？」', why: '三條路全堵——真空擋傳導與對流、亮面擋輻射、塑膠蓋擋傳導。這一題把整章串起來。' },
+    { ask: '「羽絨衣為什麼保暖？是羽毛在發熱嗎？」', why: '不是。保暖的是<b>羽毛之間的空氣</b>。所以壓扁了、濕掉了就不保暖——空氣被擠掉或被水取代了。' },
+    { ask: '「電風扇會讓房間變涼嗎？」', why: '不會。它只是加快對流，把你身上的熱帶走。溫度計放在風扇前不會降——這題很反直覺，值得問。' },
+    { ask: '在家找三樣東西：一樣保溫的、一樣散熱的、一樣兩者都不是。', why: '例如保溫瓶／散熱片／木頭湯匙。找的過程就是在複習那三條路。' }
   ],
 
   pitfalls: [
@@ -349,7 +475,34 @@ Kit.register('s5a-u3', {
   ],
 
   quiz: function () {
-    const type = Kit.pick(['which', 'which', 'direction', 'life', 'expand']);
+    const type = Kit.pick(['which', 'direction', 'life', 'expand', 'keep', 'keep']);
+
+    if (type === 'keep') {
+      const items = [
+        { q: '保溫瓶的雙層瓶壁中間<b>抽成真空</b>，主要是為了擋住哪一條路？',
+          a: '傳導和對流（沒有物質就傳不了熱、也流不動）', o: ['只有輻射', '只有化學變化', '光線'] },
+        { q: '保溫瓶內壁做成<b>亮面像鏡子</b>，是為了擋住哪一條路？',
+          a: '輻射（把熱反射回去）', o: ['傳導', '對流', '蒸發'] },
+        { q: '<b>羽絨衣</b>真正保暖的東西是什麼？',
+          a: '羽毛之間鎖住的空氣（空氣是很差的熱導體）', o: ['羽毛本身會發熱', '羽毛會反射體溫', '羽毛能擋住風就夠了'] },
+        { q: '電腦的<b>散熱片</b>做成很多薄片，主要目的是什麼？',
+          a: '增加表面積，讓更多空氣帶走熱', o: ['讓它比較好看', '減少重量', '防止灰塵進入'] },
+        { q: '<b>電風扇</b>為什麼會讓人覺得涼？',
+          a: '加快對流，把貼在皮膚上的熱空氣吹走', o: ['它會製造冷空氣', '它會降低房間溫度', '它會反射熱輻射'] },
+        { q: '夏天屋頂刷<b>白色隔熱漆</b>，處理的是哪一條路？',
+          a: '輻射（把陽光反射掉）', o: ['傳導', '對流', '蒸發'] }
+      ];
+      const it = Kit.pick(items);
+      const opts = Kit.shuffle([it.a].concat(it.o));
+      return {
+        q: it.q, choices: opts, answer: opts.indexOf(it.a),
+        steps: '答案：<b>' + it.a + '</b><br>' +
+          '<span style="color:var(--muted)">保溫和散熱是<b>同一套原理反過來用</b>：熱只有傳導、對流、輻射三條路，' +
+          '想保溫就把路<b>堵住</b>，想散熱就把路<b>打開</b>。<br>' +
+          '看到任何相關設計，先問：「它在處理哪一條路？」<br>' +
+          '保溫瓶厲害的地方就是<b>三條路一次全堵</b>——真空擋傳導與對流、亮面擋輻射、塑膠蓋擋傳導。</span>'
+      };
+    }
 
     if (type === 'which') {
       const items = [

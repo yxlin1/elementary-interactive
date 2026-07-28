@@ -1,12 +1,12 @@
 /* ============================================================
-   五上 自然（康軒）第 2 單元　植物
+   五下 自然（康軒）第 3 單元　植物世界的面面觀
    課綱 INb-Ⅲ-7「植物各部位的構造和所具有的功能有關，
                   有些植物產生特化的構造以適應環境。」
    教具：點植物的各部位看構造與功能；切換到「特化」看同一個部位
          在不同環境長成什麼樣子。
    ============================================================ */
 
-Kit.register('s5a-u2', {
+Kit.register('s5b-u3', {
 
   intro: '點下面按鈕或直接<b>點圖上的部位</b>，看每個部位在做什麼工作。再切到「特化構造」，看同一個部位在沙漠、水裡、寄生時會長成什麼樣。',
 
@@ -326,8 +326,158 @@ Kit.register('s5a-u2', {
       ctx.fillText('特化部位：' + S.part, 420, 92);
     }
 
+    /* ---------- 模式 C：繁殖方式（對應單元活動 02） ---------- */
+    const REPRO = {
+      seed: {
+        n: '種子繁殖', kind: '有性繁殖', part: '花 → 果實 → 種子', col: '#ec407a',
+        how: '花授粉受精後，<b>子房</b>發育成果實、<b>胚珠</b>發育成種子。種子傳播出去，長成新的植物。',
+        why: '子代同時得到<b>兩個親代</b>的特徵，所以每一顆種子長出來的都<b>略有不同</b>——這是好事，' +
+          '環境改變時比較有機會有個體活下來。',
+        ex: '稻、玉米、鳳仙花、蘋果、向日葵'
+      },
+      tuberStem: {
+        n: '塊莖（馬鈴薯）', kind: '無性繁殖', part: '莖', col: '#7cb342',
+        how: '把有<b>芽眼</b>的馬鈴薯切塊種下去，每個芽眼都會長成一株新的。',
+        why: '芽眼就是莖上的<b>芽</b>——這是判斷「它是莖不是根」最可靠的證據。',
+        ex: '馬鈴薯、薑、洋芋'
+      },
+      tuberRoot: {
+        n: '塊根（地瓜）', kind: '無性繁殖', part: '根', col: '#c08552',
+        how: '地瓜埋在土裡會長出<b>芽和藤</b>，剪下藤蔓插進土裡就能長成新的一株。',
+        why: '地瓜是<b>儲藏根</b>，把葉子做的養分存起來，所以又肥又甜。' +
+          '⚠️ 常和馬鈴薯搞混——地瓜是<b>根</b>，馬鈴薯是<b>莖</b>。',
+        ex: '地瓜（甘藷）'
+      },
+      runner: {
+        n: '走莖（草莓）', kind: '無性繁殖', part: '莖', col: '#8bc34a',
+        how: '母株長出貼著地面爬的<b>走莖</b>，走莖碰到土的地方會長根、長葉，變成一株新的。',
+        why: '不用種子就能快速擴張地盤，一個夏天可以爬出好幾株。',
+        ex: '草莓、酢漿草、蟹爪蘭'
+      },
+      cutting: {
+        n: '扦插', kind: '無性繁殖', part: '莖（人為）', col: '#66bb6a',
+        how: '剪一段<b>莖</b>插進土或水裡，斷口會長出新的根。',
+        why: '農民和園藝最常用的方法。因為是複製，<b>子代和母株一模一樣</b>——' +
+          '想要保留某一株的優良特性（例如特別甜的水果）就用這招。',
+        ex: '玫瑰、九重葛、地瓜葉、薄荷、黃金葛'
+      },
+      leafBud: {
+        n: '葉芽（落地生根）', kind: '無性繁殖', part: '葉', col: '#43a047',
+        how: '葉子邊緣直接長出<b>小芽</b>，小芽掉到地上就長成一株新的。',
+        why: '連葉子都能繁殖，是「植物各部位都可能有繁殖功能」最戲劇化的例子。',
+        ex: '落地生根、石蓮花、非洲堇'
+      }
+    };
+    let repro = 'seed';
+
+    function drawRepro() {
+      const ctx = cv.ctx;
+      const Rp = REPRO[repro];
+      ctx.fillStyle = '#93a3c4'; ctx.font = '13px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('植物不是只能用種子繁殖——根、莖、葉都可以長出新的一株', 16, 22);
+
+      // 左：母株 → 中：繁殖構造 → 右：新株
+      const y0 = 190;
+      ctx.fillStyle = '#3b2f26'; ctx.fillRect(0, y0 + 40, cv.W, cv.H - y0 - 40);
+      ctx.strokeStyle = '#5a4536'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, y0 + 40); ctx.lineTo(cv.W, y0 + 40); ctx.stroke();
+
+      function plant(cx, scale, label, dim) {
+        ctx.save(); ctx.translate(cx, y0 + 40); ctx.scale(scale, scale);
+        ctx.globalAlpha = dim ? .45 : 1;
+        ctx.strokeStyle = '#7cb342'; ctx.lineWidth = 7 / scale;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -80); ctx.stroke();
+        ctx.fillStyle = '#43a047';
+        [[-1, -40], [1, -58]].forEach(([s, yy]) => {
+          ctx.save(); ctx.scale(s, 1);
+          ctx.beginPath(); ctx.moveTo(0, yy);
+          ctx.quadraticCurveTo(34, yy - 22, 66, yy - 3);
+          ctx.quadraticCurveTo(34, yy + 16, 0, yy); ctx.fill();
+          ctx.restore();
+        });
+        ctx.strokeStyle = '#c08552'; ctx.lineWidth = 3 / scale;
+        [-1, 0, 1].forEach(d => {
+          ctx.beginPath(); ctx.moveTo(0, 2);
+          ctx.quadraticCurveTo(d * 16, 22, d * 26, 46); ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        ctx.fillStyle = dim ? '#5a6b8c' : '#e8eefc';
+        ctx.font = 'bold 14px "Microsoft JhengHei", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(label, cx, y0 + 96);
+      }
+
+      plant(110, 1, '母株', false);
+      plant(510, 0.62, '新的一株', false);
+
+      // 中間的繁殖構造
+      const mx = 310, my = y0 - 10;
+      ctx.fillStyle = Rp.col;
+      if (repro === 'seed') {
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath(); ctx.ellipse(mx - 26 + i * 26, my, 9, 12, .3, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (repro === 'runner') {
+        ctx.strokeStyle = Rp.col; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(mx - 80, y0 + 34);
+        ctx.quadraticCurveTo(mx, y0 + 6, mx + 80, y0 + 34); ctx.stroke();
+      } else if (repro === 'leafBud') {
+        ctx.beginPath(); ctx.ellipse(mx, my, 46, 22, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8bc34a';
+        for (let i = -2; i <= 2; i++) {
+          ctx.beginPath(); ctx.arc(mx + i * 18, my + 20, 5, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (repro === 'cutting') {
+        ctx.strokeStyle = Rp.col; ctx.lineWidth = 9;
+        ctx.beginPath(); ctx.moveTo(mx, my - 26); ctx.lineTo(mx, my + 30); ctx.stroke();
+        ctx.strokeStyle = '#c08552'; ctx.lineWidth = 2.5;
+        [-1, 0, 1].forEach(d => {
+          ctx.beginPath(); ctx.moveTo(mx, my + 28);
+          ctx.quadraticCurveTo(mx + d * 12, my + 44, mx + d * 20, my + 58); ctx.stroke();
+        });
+      } else {
+        ctx.beginPath(); ctx.ellipse(mx, my + 6, 44, 30, .2, 0, Math.PI * 2); ctx.fill();
+        if (repro === 'tuberStem') {   // 芽眼
+          ctx.fillStyle = '#33691e';
+          [[-18, -6], [8, -12], [16, 8], [-6, 12]].forEach(([dx, dy]) => {
+            ctx.beginPath(); ctx.arc(mx + dx, my + 6 + dy, 4, 0, Math.PI * 2); ctx.fill();
+          });
+          ctx.fillStyle = '#93a3c4'; ctx.font = '11px "Microsoft JhengHei", sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText('深色小點 = 芽眼', mx, my + 42);
+        }
+      }
+      // 箭頭
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3;
+      [[180, mx - 70], [mx + 70, 440]].forEach(([x1, x2]) => {
+        ctx.beginPath(); ctx.moveTo(x1, my + 4); ctx.lineTo(x2, my + 4); ctx.stroke();
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath(); ctx.moveTo(x2, my + 4); ctx.lineTo(x2 - 11, my - 2);
+        ctx.lineTo(x2 - 11, my + 10); ctx.closePath(); ctx.fill();
+      });
+      ctx.fillStyle = Rp.col; ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(Rp.n, mx, my - 44);
+    }
+
     function paint() {
       cv.clear('#0e1726');
+      if (mode === 'repro') {
+        drawRepro();
+        const Rp = REPRO[repro];
+        readout.innerHTML =
+          '<div class="big">' + Rp.n + '　<span style="color:' + Rp.col + '">' + Rp.kind +
+          '</span>　用到的部位：<b>' + Rp.part + '</b></div>' +
+          '<b>怎麼繁殖</b>：' + Rp.how + '<br>' +
+          '<b>為什麼重要</b>：' + Rp.why + '<br>' +
+          '<b>例子</b>：' + Rp.ex + '<br>' +
+          '<span style="color:var(--muted)">兩大類的差別：<b>有性繁殖</b>（種子）需要花授粉受精，' +
+          '子代和親代<b>不完全一樣</b>；<b>無性繁殖</b>（用根莖葉）不需要花，' +
+          '子代等於母株的<b>複製品</b>，長得快但缺乏變化。</span>';
+        return;
+      }
       if (mode === 'normal') {
         drawPlant();
         const I = INFO[part];
@@ -352,24 +502,31 @@ Kit.register('s5a-u2', {
       if (p) { part = p; partSeg.select(p); paint(); }
     });
 
+    // 三個模式剛好對應課本這一單元的三個活動
     const modeSeg = Kit.segmented('模式', [
-      { label: '各部位的功能', value: 'normal' },
-      { label: '特化構造', value: 'special' }
+      { label: '① 如何獲取養分（各部位功能）', value: 'normal' },
+      { label: '② 有哪些繁殖方式', value: 'repro' },
+      { label: '③ 有哪些妙招（特化構造）', value: 'special' }
     ], function (v) {
       mode = v;
       partSeg.wrap.style.display = v === 'normal' ? '' : 'none';
+      reproSeg.wrap.style.display = v === 'repro' ? '' : 'none';
       specSeg.wrap.style.display = v === 'special' ? '' : 'none';
       paint();
     }, mode);
 
     const partSeg = Kit.segmented('部位', Object.keys(PARTS).map(k => ({ label: PARTS[k].n, value: k })),
       function (v) { part = v; paint(); }, part);
+    const reproSeg = Kit.segmented('繁殖方式', Object.keys(REPRO).map(k => ({ label: REPRO[k].n, value: k })),
+      function (v) { repro = v; paint(); }, repro);
     const specSeg = Kit.segmented('看哪一種', Object.keys(SPECIAL).map(k => ({ label: SPECIAL[k].n, value: k })),
       function (v) { spec = v; paint(); }, spec);
+    reproSeg.wrap.style.display = 'none';
     specSeg.wrap.style.display = 'none';
 
     controls.appendChild(modeSeg.wrap);
     controls.appendChild(partSeg.wrap);
+    controls.appendChild(reproSeg.wrap);
     controls.appendChild(specSeg.wrap);
     host.appendChild(controls);
     host.appendChild(readout);
@@ -386,6 +543,9 @@ Kit.register('s5a-u2', {
     { ask: '「植物哪個部位在做飯？哪個在喝水？」', why: '葉在做飯（光合作用），根在喝水。用擬人化最快建立分工的概念，之後再補正式名詞。' },
     { ask: '「花為什麼要開得漂亮又有香味？」', why: '不是為了給人看，是為了<b>吸引昆蟲傳粉</b>。這一問可以打破「植物為人而存在」的想法。' },
     { ask: '「我們吃的地瓜是根還是莖？馬鈴薯呢？」', why: '地瓜是<b>根</b>，馬鈴薯是<b>地下莖</b>。這是經典考題，也是很好的觀察題——馬鈴薯上有芽眼（芽從莖長出來）。' },
+    { ask: '切到繁殖模式：「植物一定要用種子才能生小孩嗎？」', why: '不一定。根（地瓜）、莖（馬鈴薯、草莓走莖、扦插）、葉（落地生根）都可以。這是這一單元最反直覺、也最好玩的一段。' },
+    { ask: '「切一塊馬鈴薯種下去會長出馬鈴薯，切一塊地瓜也會——那它們是同一種東西嗎？」', why: '不是。馬鈴薯用的是<b>莖</b>（有芽眼），地瓜用的是<b>根</b>。這一題把「繁殖方式」和「部位辨識」串起來。' },
+    { ask: '「用扦插種出來的玫瑰，和用種子種出來的，有什麼不一樣？」', why: '扦插是<b>複製</b>，和母株一模一樣；種子是父母各給一半，每株都略有不同。農民想保留優良品種就用扦插。' },
     { ask: '「仙人掌的刺是什麼變的？為什麼要變成刺？」', why: '是<b>葉</b>變的。沙漠缺水，大葉子會蒸散太多水，變成刺可以省水又能防被吃。' },
     { ask: '實驗：白色花（或芹菜）插進紅墨水，隔幾小時看。', why: '會看到葉脈變紅，直接證明「根吸水、莖運送」。這是這一章最值得做的實驗，材料超市就有。' },
     { ask: '「種子發芽需要什麼？需要陽光嗎？」', why: '需要水、空氣、適當溫度；<b>不一定需要陽光</b>。可以做兩組綠豆（有光/黑暗）對照，結果會讓孩子很驚訝。' }
@@ -396,11 +556,53 @@ Kit.register('s5a-u2', {
     { bad: '以為種子發芽一定要陽光。', fix: '發芽只需要<b>水、空氣、適當溫度</b>。（長成幼苗之後才需要陽光行光合作用。）' },
     { bad: '以為植物只行光合作用、不呼吸。', fix: '植物<b>一直都在呼吸</b>，白天光合作用比較旺盛所以整體放出氧氣，晚上只呼吸。' },
     { bad: '把「果實」和「種子」混為一談。', fix: '<b>子房</b>發育成果實，<b>胚珠</b>發育成種子。果實包在外面，種子在裡面。' },
-    { bad: '以為特化構造是「植物想要變成那樣」。', fix: '是長期<b>適應環境</b>的結果，不是植物有意識地改變。講因果就好，不用講演化機制。' }
+    { bad: '以為特化構造是「植物想要變成那樣」。', fix: '是長期<b>適應環境</b>的結果，不是植物有意識地改變。講因果就好，不用講演化機制。' },
+    { bad: '以為植物只能用種子繁殖。', fix: '根、莖、葉都可以。地瓜（根）、馬鈴薯與草莓（莖）、落地生根（葉）都是常見例子。', src: 'INb-Ⅲ-7' },
+    { bad: '把「無性繁殖」當成比較低等或比較差的方式。', fix: '各有優缺點：無性繁殖<b>長得快、完全複製</b>（適合保留優良品種）；有性繁殖<b>子代有變化</b>（環境改變時比較有機會存活）。' },
+    { bad: '以為扦插的枝條會長出「種子的根」。', fix: '扦插長出來的是<b>不定根</b>——從莖的斷口直接長根，和種子發芽長的根不同來源，但功能一樣。' }
   ],
 
   quiz: function () {
-    const type = Kit.pick(['job', 'job', 'special', 'rootstem', 'germ']);
+    const type = Kit.pick(['job', 'special', 'rootstem', 'germ', 'repro', 'repro', 'sexual']);
+
+    if (type === 'repro') {
+      const items = [
+        { q: '<b>馬鈴薯</b>是用哪個部位繁殖的？', a: '莖', o: ['根', '葉', '種子'] },
+        { q: '<b>地瓜</b>是用哪個部位繁殖的？', a: '根', o: ['莖', '葉', '花'] },
+        { q: '<b>落地生根</b>是用哪個部位繁殖的？', a: '葉', o: ['根', '莖', '種子'] },
+        { q: '<b>草莓</b>靠著貼地爬行的構造繁殖，那個構造叫什麼？', a: '走莖', o: ['走根', '匍匐葉', '氣生根'] },
+        { q: '把玫瑰剪一段插進土裡讓它長根，這種方法叫什麼？', a: '扦插', o: ['嫁接', '壓條', '播種'] }
+      ];
+      const it = Kit.pick(items);
+      const opts = Kit.shuffle([it.a].concat(it.o));
+      return {
+        q: it.q, choices: opts, answer: opts.indexOf(it.a),
+        steps: '答案：<b>' + it.a + '</b><br>' +
+          '<b>用種子以外的方式繁殖（無性繁殖）</b>：<br>' +
+          '<b>根</b>——地瓜<br>' +
+          '<b>莖</b>——馬鈴薯（塊莖，有芽眼）、薑、草莓（走莖）、扦插的玫瑰／地瓜葉<br>' +
+          '<b>葉</b>——落地生根、石蓮花<br>' +
+          '<span style="color:var(--muted)">判斷「是根還是莖」的關鍵：<b>莖有節和芽</b>（馬鈴薯的芽眼就是芽）。</span>'
+      };
+    }
+
+    if (type === 'sexual') {
+      const askSeed = Math.random() < .5;
+      const opts = Kit.shuffle([
+        { t: '子代和母株一模一樣（等於複製）', v: 'clone' },
+        { t: '子代和親代不完全一樣，每一株都略有差異', v: 'vary' },
+        { t: '子代一定比親代高大', v: 'x1' },
+        { t: '子代不會開花', v: 'x2' }
+      ]);
+      return {
+        q: '用<b>' + (askSeed ? '種子（有性繁殖）' : '扦插（無性繁殖）') + '</b>繁殖出來的植物，有什麼特點？',
+        choices: opts.map(o => o.t), answer: opts.findIndex(o => o.v === (askSeed ? 'vary' : 'clone')),
+        steps: '<b>有性繁殖（種子）</b>：需要花授粉受精，子代同時得到兩個親代的特徵，' +
+          '所以<b>每一株都略有不同</b>。環境改變時，比較有機會有個體活下來。<br>' +
+          '<b>無性繁殖（根莖葉）</b>：不需要花，子代是母株的<b>複製品</b>，長得快，' +
+          '而且能完整保留母株的優點——農民想留住特別甜的品種就用扦插。'
+      };
+    }
 
     if (type === 'job') {
       const items = [
