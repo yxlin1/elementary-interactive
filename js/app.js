@@ -242,13 +242,15 @@
       '</div>' +
 
       '<div class="card"><h3><span class="ico">📚</span><span>版本依據</span></h3>' +
-      '<p class="src-note">章節目錄依 <b>114 學年度</b>實際選用的教科書版本建置（上、下學期版本一致）：</p>' +
+      '<p class="src-note">章節目錄依學校 <b>115 學年度官方課程計畫</b>建置（2026 年 8 月起適用，上、下學期版本一致）：</p>' +
       '<table><thead><tr><th>科目</th>' + gradeNames.map(n => '<th>' + n + '</th>').join('') +
       '</tr></thead><tbody>' + verRows + '</tbody></table>' +
-      '<p class="src-note">💡 台灣的教科書是<b>各校自行選用</b>，同一所學校不同科目也可能用不同版本。' +
-      '想查自己學校用哪一版，可到 <code>version.oneclass.com.tw</code> 依縣市與校名查詢。<br>' +
-      '版本不同也沒關係——各版<b>單元名稱與順序</b>會有差異，但對應的<b>課綱條目是一樣的</b>，' +
-      '可以用上面紫色框的條目代碼對照。</p>' +
+      '<p class="src-note">數學在 114 學年度為康軒，<b>115 學年度改為南一</b>；自然維持康軒。' +
+      '依據是學校上傳到臺南市課程計畫平台 <code>course.tn.edu.tw</code> 的「領域學習課程計畫」，' +
+      '表頭載明教材版本，各單元的活動也逐週列出。</p>' +
+      '<p class="src-note">💡 台灣的教科書是<b>各校自行選用</b>，同一所學校不同科目、不同學年都可能不一樣。<br>' +
+      '版本不同也不必重做——各版<b>單元名稱與順序</b>會有差異，但對應的<b>課綱條目是一樣的</b>，' +
+      '可以用上面紫色框的條目代碼對照；<code>js/curriculum.js</code> 裡每個單元可用 <code>use</code> 指向既有教具。</p>' +
       (CURRICULUM.length > VISIBLE.length
         ? '<p class="src-note">目前只顯示 ' + gradeNames.join('、') + '。' +
           CURRICULUM.filter(g => g.hidden).map(g => g.grade).join('、') +
