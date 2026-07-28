@@ -228,13 +228,11 @@ const CURRICULUM = [
         /* 自然單元名稱與活動，取自同一份 115 官方課程計畫 */
         subject: '自然', publisher: '康軒', term: '五上',
         chapters: [
-          { id: 's5a-u1', no: 1, title: '動物世界',     std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'],
-            todo: '活動：動物如何求生存／動物具有社會行為／動物如何延續生命' },
-          { id: 's5a-u2', no: 2, title: '探索聲光世界', std: ['INe-Ⅲ-6', 'INe-Ⅲ-8', 'INe-Ⅲ-7'],
-            todo: '活動：樂音和噪音／樂器如何發出不同的聲音／光有什麼特性與現象' },
-          { id: 's5a-u3', no: 3, title: '神祕的天空',   std: ['INc-Ⅲ-13', 'INc-Ⅲ-15', 'INc-Ⅲ-14'], impl: true, kind: '3d', use: 's6a-sun' },
-          { id: 's5a-u4', no: 4, title: '燃燒與生鏽',   std: ['INe-Ⅲ-3', 'INa-Ⅲ-4'],
-            todo: '活動：空氣與燃燒／燃燒的條件／為何會生鏽' }
+          { id: 's5a-u1', no: 1, title: '動物世界',     std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'], impl: true, kind: '2d' },
+          { id: 's5a-u2', no: 2, title: '探索聲光世界', std: ['INe-Ⅲ-6', 'INe-Ⅲ-8', 'INe-Ⅲ-7'], impl: true, kind: '2d' },
+          { id: 's5a-u3', no: 3, title: '神祕的天空',   std: ['INc-Ⅲ-13', 'INc-Ⅲ-15', 'INc-Ⅲ-14'], impl: true, kind: '3d',
+            use: ['s6a-sun', 'sky-solar', 'sky-stars'] },   // 三個教具 ＝ 課本三個活動
+          { id: 's5a-u4', no: 4, title: '燃燒與生鏽',   std: ['INe-Ⅲ-3', 'INa-Ⅲ-4'], impl: true, kind: '2d' }
         ]
       },
       {
