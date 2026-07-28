@@ -107,30 +107,41 @@
       ]));
     }
 
-    const def = Kit.get(id);
-    if (def) {
-      /* 1. 互動教具 */
-      const stageCard = el('div', { class: 'card' });
-      stageCard.appendChild(el('h3', {}, [
-        el('span', { class: 'ico', text: c.kind === '3d' ? '🧊' : '🎛' }),
-        el('span', { text: '互動教具' })
-      ]));
-      if (def.intro) stageCard.appendChild(el('p', { class: 'hint', html: def.intro }));
-      // 只在窄螢幕直式時由 CSS 顯示
-      stageCard.appendChild(el('p', {
-        class: 'rotate-hint',
-        html: '📱 手機請<b>橫著拿</b>，圖會大很多。直式時圖可以用手指左右滑動。'
-      }));
-      const host = el('div');
-      stageCard.appendChild(host);
-      inner.appendChild(stageCard);
+    /* 一個單元可以掛「別的 id 底下已經做好的教具」，也可以一次掛好幾個。
+       不同出版社教的是同一批課綱條目，只是單元編號與拆併方式不同，
+       所以用 use 重新對應就好，不需要把教具重寫一遍。 */
+    const aidIds = c.use ? (Array.isArray(c.use) ? c.use : [c.use]) : [id];
+    const defs = aidIds.map(a => Kit.get(a)).filter(Boolean);
 
-      /* 2. 家長導引卡 */
-      if (def.parentGuide) {
+    if (defs.length) {
+      const hosts = [];
+
+      /* 1. 互動教具（一個單元若對應多個教具，就依序列出） */
+      defs.forEach((def, i) => {
+        const stageCard = el('div', { class: 'card' });
+        stageCard.appendChild(el('h3', {}, [
+          el('span', { class: 'ico', text: c.kind === '3d' ? '🧊' : '🎛' }),
+          el('span', { text: defs.length > 1 ? '互動教具 ' + (i + 1) + '／' + defs.length : '互動教具' })
+        ]));
+        if (def.intro) stageCard.appendChild(el('p', { class: 'hint', html: def.intro }));
+        // 只在窄螢幕直式時由 CSS 顯示
+        stageCard.appendChild(el('p', {
+          class: 'rotate-hint',
+          html: '📱 手機請<b>橫著拿</b>，圖會大很多。直式時圖可以用手指左右滑動。'
+        }));
+        const host = el('div');
+        stageCard.appendChild(host);
+        inner.appendChild(stageCard);
+        hosts.push(host);
+      });
+
+      /* 2. 家長導引卡（多個教具就合併） */
+      const guides = defs.reduce((a, d) => a.concat(d.parentGuide || []), []);
+      if (guides.length) {
         const g = el('div', { class: 'card guide' });
         g.appendChild(el('h3', {}, [el('span', { class: 'ico', text: '👨‍👧' }), el('span', { text: '家長導引卡（照著問就好）' })]));
         const ol = el('ol');
-        def.parentGuide.forEach(item => {
+        guides.forEach(item => {
           ol.appendChild(el('li', {}, [
             el('span', { class: 'ask', html: item.ask }),
             el('span', { class: 'why', html: item.why })
@@ -141,11 +152,12 @@
       }
 
       /* 3. 常見錯誤 */
-      if (def.pitfalls) {
+      const pits = defs.reduce((a, d) => a.concat(d.pitfalls || []), []);
+      if (pits.length) {
         const p = el('div', { class: 'card pit' });
         p.appendChild(el('h3', {}, [el('span', { class: 'ico', text: '🚧' }), el('span', { text: '常見錯誤（課綱點名的迷思）' })]));
         const ul = el('ul');
-        def.pitfalls.forEach(item => {
+        pits.forEach(item => {
           const li = el('li', {}, [
             el('span', { class: 'bad', html: item.bad }),
             el('span', { class: 'fix', html: item.fix })
@@ -157,20 +169,24 @@
         inner.appendChild(p);
       }
 
-      /* 4. 練習題 */
-      if (def.quiz) {
+      /* 4. 練習題：多個教具時每題隨機從其中一個抽 */
+      const quizzes = defs.map(d => d.quiz).filter(Boolean);
+      if (quizzes.length) {
         const q = el('div', { class: 'card quiz' });
         q.appendChild(el('h3', {}, [el('span', { class: 'ico', text: '✏️' }), el('span', { text: '練習題（即時對錯 + 解題步驟）' })]));
         const qHost = el('div');
         q.appendChild(qHost);
         inner.appendChild(q);
+        const makeQ = quizzes.length === 1 ? quizzes[0]
+          : function () { return quizzes[Math.floor(Math.random() * quizzes.length)](); };
         // 教具先掛上再跑練習，確保 DOM 已有寬度
-        setTimeout(() => Kit.practice(qHost, def.quiz, def.quizCount || 5), 0);
+        setTimeout(() => Kit.practice(qHost, makeQ, defs[0].quizCount || 5), 0);
       }
 
       contentEl.innerHTML = '';
       contentEl.appendChild(inner);
-      activeCleanup = def.build(host) || null;
+      const cleanups = defs.map((d, i) => d.build(hosts[i])).filter(f => typeof f === 'function');
+      activeCleanup = cleanups.length ? function () { cleanups.forEach(f => f()); } : null;
 
     } else {
       inner.appendChild(el('div', { class: 'notice' }, [

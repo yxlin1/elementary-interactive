@@ -184,61 +184,65 @@ const CURRICULUM = [
     ]
   },
   {
+    /* ============================================================
+       五年級 —— 依「臺南市公立永康區大橋國民小學 115 學年度」官方課程計畫建置
+       來源：臺南市課程計畫平台 https://course.tn.edu.tw/school.aspx?sch=114629
+             C5-1 領域學習課程(調整)計畫（普通班五年級 數學／自然）
+       PDF 表頭載明：數學 教材版本「南一」、自然 教材版本「康軒版」
+       ⚠️ 數學在 115 學年度由康軒<b>改為南一</b>，單元編號與拆併方式因此不同。
+          教具本身沿用（兩版教的是同一批課綱條目），用 use 欄位重新對應。
+       ============================================================ */
     grade: '五年級',
     books: [
       {
-        subject: '數學', publisher: '康軒', term: '五上',
+        subject: '數學', publisher: '南一', term: '五上',
         chapters: [
-          { id: 'm5a-u1',  no: 1,  title: '多位小數與加減',     std: ['N-5-1'], impl: true, kind: '2d' },
-          { id: 'm5a-u2',  no: 2,  title: '因數與公因數',       std: ['N-5-3'], impl: true, kind: '2d' },
-          { id: 'm5a-u3',  no: 3,  title: '倍數與公倍數',       std: ['N-5-3'], impl: true, kind: '2d' },
-          { id: 'm5a-u4',  no: 4,  title: '擴分、約分和通分',   std: ['N-5-4'], impl: true, kind: '2d' },
-          { id: 'm5a-u5',  no: 5,  title: '多邊形與扇形',       std: ['S-5-1', 'S-5-3'], impl: true, kind: '2d' },
-          { id: 'm5a-u6',  no: 6,  title: '異分母分數的加減',   std: ['N-5-4'], impl: true, kind: '2d' },
-          { id: 'm5a-u7',  no: 7,  title: '線對稱圖形',         std: ['S-5-4'], impl: true, kind: '2d' },
-          { id: 'm5a-u8',  no: 8,  title: '整數四則運算',       std: ['R-5-1', 'R-5-2'], impl: true, kind: '2d' },
-          { id: 'm5a-u9',  no: 9,  title: '面積',               std: ['S-5-2'], impl: true, kind: '2d' },
-          { id: 'm5a-u10', no: 10, title: '柱體、錐體和球',     std: ['S-5-7', 'S-5-6'], impl: true, kind: '3d' }
+          { id: 'n5a-u1',  no: 1,  title: '折線圖',                     std: ['D-5-1'], impl: true, kind: '2d' },
+          { id: 'n5a-u2',  no: 2,  title: '因數和倍數',                 std: ['N-5-3'], impl: true, kind: '2d', use: ['m5a-u2', 'm5a-u3'] },
+          { id: 'n5a-u3',  no: 3,  title: '多邊形',                     std: ['S-5-1'], impl: true, kind: '2d', use: 'm5a-u5' },
+          { id: 'n5a-u4',  no: 4,  title: '擴分、約分和通分',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u4' },
+          { id: 'n5a-u5',  no: 5,  title: '線對稱圖形',                 std: ['S-5-4'], impl: true, kind: '2d', use: 'm5a-u7' },
+          { id: 'n5a-u6',  no: 6,  title: '異分母分數的加減',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u6' },
+          { id: 'n5a-u7',  no: 7,  title: '整數四則計算',               std: ['R-5-1', 'R-5-2', 'N-5-2'], impl: true, kind: '2d', use: 'm5a-u8' },
+          { id: 'n5a-u8',  no: 8,  title: '平行四邊形、三角形和梯形的面積', std: ['S-5-2'], impl: true, kind: '2d', use: 'm5a-u9' },
+          { id: 'n5a-u9',  no: 9,  title: '時間的乘除',                 std: ['N-5-16'], impl: true, kind: '2d', use: 'm5b-u9' },
+          { id: 'n5a-u10', no: 10, title: '正方體和長方體',             std: ['S-5-5'], impl: true, kind: '3d', use: ['m5b-u7', 'm5b-u1'] }
         ]
       },
       {
-        subject: '數學', publisher: '康軒', term: '五下',
+        subject: '數學', publisher: '南一', term: '五下',
         chapters: [
-          { id: 'm5b-u1',  no: 1,  title: '體積',                 std: ['N-5-14', 'S-5-5'], impl: true, kind: '3d' },
-          { id: 'm5b-u2',  no: 2,  title: '分數的計算',           std: ['N-5-5', 'N-5-6', 'N-5-7'], impl: true, kind: '2d' },
-          { id: 'm5b-u3',  no: 3,  title: '容積',                 std: ['N-5-15'], impl: true, kind: '3d' },
-          { id: 'm5b-u4',  no: 4,  title: '小數的乘法',           std: ['N-5-8'], impl: true, kind: '2d' },
-          { id: 'm5b-u5',  no: 5,  title: '十進位結構',           std: ['N-5-1'], impl: true, kind: '2d' },
-          { id: 'm5b-u6',  no: 6,  title: '整數、小數除以整數',   std: ['N-5-9', 'N-5-11'], impl: true, kind: '2d' },
-          { id: 'm5b-u7',  no: 7,  title: '表面積',               std: ['S-5-5'], impl: true, kind: '3d' },
-          { id: 'm5b-u8',  no: 8,  title: '比率與百分率',         std: ['N-5-10'], impl: true, kind: '2d' },
-          { id: 'm5b-u9',  no: 9,  title: '時間的乘除',           std: ['N-5-16'], impl: true, kind: '2d' },
-          { id: 'm5b-u10', no: 10, title: '生活中的大單位',       std: ['N-5-12', 'N-5-13'], impl: true, kind: '2d' }
+          { id: 'n5b-u1',  no: 1,  title: '分數的計算',         std: ['N-5-5', 'N-5-6', 'N-5-7'], impl: true, kind: '2d', use: 'm5b-u2' },
+          { id: 'n5b-u2',  no: 2,  title: '數的十進位結構',     std: ['N-5-1'], impl: true, kind: '2d', use: ['m5b-u5', 'm5a-u1'] },
+          { id: 'n5b-u3',  no: 3,  title: '小數的乘法',         std: ['N-5-8'], impl: true, kind: '2d', use: 'm5b-u4' },
+          { id: 'n5b-u4',  no: 4,  title: '扇形',               std: ['S-5-3'], impl: true, kind: '2d', use: 'm5a-u5' },
+          { id: 'n5b-u5',  no: 5,  title: '體積',               std: ['N-5-14', 'S-5-5'], impl: true, kind: '3d', use: 'm5b-u1' },
+          { id: 'n5b-u6',  no: 6,  title: '整數、小數除以整數', std: ['N-5-9', 'N-5-11'], impl: true, kind: '2d', use: 'm5b-u6' },
+          { id: 'n5b-u7',  no: 7,  title: '生活中的大單位',     std: ['N-5-12', 'N-5-13'], impl: true, kind: '2d', use: 'm5b-u10' },
+          { id: 'n5b-u8',  no: 8,  title: '比率和百分率',       std: ['N-5-10'], impl: true, kind: '2d', use: 'm5b-u8' },
+          { id: 'n5b-u9',  no: 9,  title: '容積和容量',         std: ['N-5-15'], impl: true, kind: '3d', use: 'm5b-u3' },
+          { id: 'n5b-u10', no: 10, title: '柱體、錐體和球體',   std: ['S-5-7', 'S-5-6'], impl: true, kind: '3d', use: 'm5a-u10' }
         ]
       },
       {
-        /* 單元名稱與各單元的活動，來源：
-           五上 https://acerksy.pixnet.net/blog/post/219207999
-           五下 https://acerksy.pixnet.net/blog/post/219427151
-           兩份都列到活動層級，且與六上（水溶液、觀測太陽）互不重疊。 */
+        /* 自然單元名稱與活動，取自同一份 115 官方課程計畫 */
         subject: '自然', publisher: '康軒', term: '五上',
         chapters: [
-          { id: 's5a-u1', no: 1, title: '動物世界面面觀', std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'],
-            todo: '活動：動物如何求生存／動物具有社會行為嗎／動物如何延續生命' },
-          { id: 's5a-u2', no: 2, title: '探索聲光世界',   std: ['INe-Ⅲ-6', 'INe-Ⅲ-7', 'INe-Ⅲ-8'],
-            todo: '活動：樂音和噪音有什麼不同／樂器如何發出不同的聲音／光有什麼特性與現象' },
-          { id: 's5a-u3', no: 3, title: '燃燒和生鏽',     std: ['INe-Ⅲ-3', 'INa-Ⅲ-4', 'INc-Ⅲ-1'],
-            todo: '活動：氧氣／二氧化碳／鐵生鏽' },
-          { id: 's5a-u4', no: 4, title: '美麗的星空',     std: ['INc-Ⅲ-14', 'INc-Ⅲ-15', 'INc-Ⅲ-13'],
-            todo: '活動：星星與星座／觀測星空／星星位置的改變' }
+          { id: 's5a-u1', no: 1, title: '動物世界',     std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'],
+            todo: '活動：動物如何求生存／動物具有社會行為／動物如何延續生命' },
+          { id: 's5a-u2', no: 2, title: '探索聲光世界', std: ['INe-Ⅲ-6', 'INe-Ⅲ-8', 'INe-Ⅲ-7'],
+            todo: '活動：樂音和噪音／樂器如何發出不同的聲音／光有什麼特性與現象' },
+          { id: 's5a-u3', no: 3, title: '神祕的天空',   std: ['INc-Ⅲ-13', 'INc-Ⅲ-15', 'INc-Ⅲ-14'], impl: true, kind: '3d', use: 's6a-sun' },
+          { id: 's5a-u4', no: 4, title: '燃燒與生鏽',   std: ['INe-Ⅲ-3', 'INa-Ⅲ-4'],
+            todo: '活動：空氣與燃燒／燃燒的條件／為何會生鏽' }
         ]
       },
       {
         subject: '自然', publisher: '康軒', term: '五下',
         chapters: [
           { id: 's5b-u1', no: 1, title: '力與運動',         std: ['INd-Ⅲ-13', 'INc-Ⅲ-5', 'INc-Ⅲ-6'], impl: true, kind: '2d' },
-          { id: 's5b-u2', no: 2, title: '大地的奧妙',       std: ['INd-Ⅲ-8', 'INd-Ⅲ-9', 'INc-Ⅲ-11'], impl: true, kind: '2d' },
-          { id: 's5b-u3', no: 3, title: '植物世界的面面觀', std: ['INb-Ⅲ-7', 'INa-Ⅲ-9', 'INd-Ⅲ-6'], impl: true, kind: '2d' },
+          { id: 's5b-u2', no: 2, title: '大地的奧祕',       std: ['INd-Ⅲ-8', 'INd-Ⅲ-9', 'INc-Ⅲ-11'], impl: true, kind: '2d' },
+          { id: 's5b-u3', no: 3, title: '植物世界面面觀',   std: ['INb-Ⅲ-7', 'INa-Ⅲ-9', 'INd-Ⅲ-6'], impl: true, kind: '2d' },
           { id: 's5b-u4', no: 4, title: '熱的作用與傳播',   std: ['INa-Ⅲ-8', 'INe-Ⅲ-2', 'INa-Ⅲ-5'], impl: true, kind: '2d' }
         ]
       }
