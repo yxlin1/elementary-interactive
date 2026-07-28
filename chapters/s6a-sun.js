@@ -140,8 +140,9 @@ Kit.register('s6a-sun', {
     S.add(me);
     const EYE = new THREE.Vector3(0, GNOMON * .895, 0);   // 小人的眼睛高度
 
-    // 竿子：量影子的工具，讓開中心站到觀測者的東南邊
-    const POLE_AT = new THREE.Vector3(2.5, 0, 2.5);
+    // 竿子：量影子的工具。中心留給小人，竿子就插在他旁邊（東南側約一步半的位置）。
+    // 再往外挪的話看起來會像跟觀測者無關的另一根柱子，兩條影子也對不起來。
+    const POLE_AT = new THREE.Vector3(1.1, 0, 1.1);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, GNOMON, 12),
       new THREE.MeshLambertMaterial({ color: 0xe8eefc }));
     pole.position.set(POLE_AT.x, GNOMON / 2, POLE_AT.z);
