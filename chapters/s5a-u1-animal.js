@@ -370,6 +370,10 @@ Kit.register('s5a-u1', {
     }
 
     function paint() {
+      // 切換模式／主題時，各清單長度不同。若殘留的索引超出新清單範圍
+      // （例如從 7 個禦敵方式切到只有 2 項的繁殖方式），取值會是 undefined。
+      // 這裡統一夾限，任何進入點都安全。
+      pick = Math.max(0, Math.min(pick, maxPick() - 1));
       cv.clear('#0e1726');
       if (mode === 'survive') {
         if (sub === 'beak') drawBeaks();
