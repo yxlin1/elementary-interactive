@@ -316,16 +316,67 @@ const Kit = (function () {
     let on = false;
 
     // 3D 場景各自監聽 window resize，發一個事件就能讓它們重新量尺寸，
-    // 不必在這裡持有每個場景的參照。
-    function reflow() { window.dispatchEvent(new Event('resize')); }
+    // 不必在這裡持有每個場景的參照。busy 旗標是為了讓下面的 onResize
+    // 認得「這一發是自己丟的」，不然就會無限遞迴。dispatchEvent 是同步的，
+    // 所以用一對賦值把它夾住就夠了。
+    let busy = false;
+    function reflow() {
+      busy = true;
+      window.dispatchEvent(new Event('resize'));
+      busy = false;
+    }
 
     /* 全部同步做完，不用 requestAnimationFrame。
        rAF 在「分頁不在前景」或「這一章是純 2D、沒有動畫迴圈」時可能遲遲不觸發，
        屬性就會卡在錯誤狀態。改成直接讀 stage.clientHeight——讀取版面屬性會
        強迫瀏覽器立刻把剛加上的 .fs-on 排版算完，量到的就是正確的可用高度。 */
+    const flat = stage.querySelector('.c2d');        // 2D 教具的畫布（3D 的是 <canvas> 但沒有這個 class）
+
     function sizeCanvas() {
-      if (!on) stage.removeAttribute('data-force-h');
-      else stage.setAttribute('data-force-h', Math.max(200, stage.clientHeight));
+      if (!on) {
+        stage.removeAttribute('data-force-h');
+        stage.style.overflow = '';
+        if (flat) { flat.style.width = ''; flat.style.height = ''; }
+        reflow();
+        return;
+      }
+      // 先關掉捲軸再量。留著 overflow:auto 會變成迴圈：捲軸吃掉 15px 寬 →
+      // 算出來的畫布變小 → 其實不再需要捲軸，但尺寸已經照有捲軸的寬度算好了。
+      // 底下確定放不下時才把捲軸打開。
+      stage.style.overflow = 'hidden';
+      // 要用「內容框」而不是外框：不少 2D 章節會自己在 .stage 上加行內
+      // padding（例如 padding:14px 0）。直接拿 getBoundingClientRect 的高度
+      // 當可用高度，畫布就會比內容框多出上下的 padding，被裁掉一截。
+      // 也不能用 clientWidth/Height——那是四捨五入過的整數，293.6 會回報 294，
+      // 多出來的 0.4px 又會擠出一條捲軸。
+      const cs = getComputedStyle(stage);
+      const px = v => parseFloat(v) || 0;
+      const insetX = px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth);
+      const insetY = px(cs.paddingTop) + px(cs.paddingBottom) + px(cs.borderTopWidth) + px(cs.borderBottomWidth);
+      const box = stage.getBoundingClientRect();
+      const bw = Math.floor(box.width - insetX);
+      const bh = Math.max(200, Math.floor(box.height - insetY));
+      // 3D：把可用高度寫給 scene3d（它的 resize 會讀這個屬性）
+      stage.setAttribute('data-force-h', bh);
+      // 2D：直接算出等比例放到最大的尺寸。
+      // 純 CSS 做不到「兩個方向都能放大、又保證不變形」——用 width:100% 時，
+      // 遇到寬扁的容器 max-height 會把高度夾住、寬度卻不跟著縮，圖就被拉扁了；
+      // 用 width:auto 又只會停在點陣原尺寸不放大。所以這裡自己算。
+      // （不能用 object-fit：那會讓元素框大於實際畫面，可拖曳的圖表就點不準了。）
+      if (flat) {
+        const ar = flat.width / flat.height;         // 點陣比例＝邏輯比例（兩邊都乘了 dpr）
+        // 平常那個「最小寬度」是為了字級可讀才設的，全螢幕一樣要守住——
+        // 否則手機直式全螢幕（螢幕只有 375 寬）反而比不進全螢幕還小。
+        // 真的塞不下就讓 .stage 捲動，和平常的行為一致。
+        const minW = parseFloat(getComputedStyle(flat).getPropertyValue('--c2d-min-w')) || 0;
+        const w2 = Math.floor(Math.max(minW, Math.min(bw, bh * ar)));
+        const h2 = Math.floor(w2 / ar);
+        // 兩邊都由同一個 w2 推出來，比例最多差一個像素的捨去誤差
+        flat.style.width = w2 + 'px';
+        flat.style.height = h2 + 'px';
+        // 只有最小寬度真的頂出容器時才開捲軸（手機直式）
+        if (w2 > bw || h2 > bh) stage.style.overflow = 'auto';
+      }
       reflow();
     }
 
@@ -362,13 +413,13 @@ const Kit = (function () {
       if (on && fsEl !== wrap) { on = false; paint(); }
     }
     function onKey(e) { if (on && e.key === 'Escape') leave(); }
-    function onResize() { if (on) sizeCanvas(); }
+    function onResize() { if (on && !busy) sizeCanvas(); }
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
     document.addEventListener('keydown', onKey);
-    // 轉螢幕方向時要重算，但 sizeCanvas 自己也會發 resize，
-    // 所以只在全螢幕狀態下才回應，避免無窮迴圈。
-    window.addEventListener('orientationchange', onResize);
+    // 視窗改變大小、手機轉向都要重新算一次。sizeCanvas 自己也會發 resize，
+    // 靠上面的 busy 旗標區分，才不會遞迴。
+    window.addEventListener('resize', onResize);
 
     // 初始只設按鈕文字，不走 paint()——那會多發一次 resize，
     // 讓剛建好、還沒定位完相機的場景白跑一次取景。
@@ -379,7 +430,7 @@ const Kit = (function () {
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('orientationchange', onResize);
+      window.removeEventListener('resize', onResize);
       if (on) leave();
     };
   }
@@ -573,11 +624,13 @@ const Kit = (function () {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     c.width = width * dpr;
     c.height = height * dpr;
-    c.style.width = '100%';
-    c.style.maxWidth = width + 'px';
+    // 尺寸用 CSS 變數傳給樣式表，不要直接寫 style.width。
+    // 行內樣式的優先權高過樣式表，全螢幕時就沒辦法用 CSS 覆寫——
+    // 之前 2D 圖在全螢幕被拉成寬 100%、高 100% 而變形，原因就在這裡。
+    c.style.setProperty('--c2d-max-w', width + 'px');
     // 手機上若讓 620 寬的圖直接縮到 279px（45%），圖上 13px 的字只剩 6px，完全看不清。
     // 設一個最小寬度，容器（.stage）再開水平捲動，寧可左右滑也不要看不見。
-    c.style.minWidth = Math.min(width, 470) + 'px';
+    c.style.setProperty('--c2d-min-w', Math.min(width, 470) + 'px');
     c.style.aspectRatio = width + ' / ' + height;
     host.appendChild(c);
     const ctx = c.getContext('2d');

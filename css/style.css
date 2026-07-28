@@ -172,7 +172,13 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
   overflow-x: auto; overflow-y: hidden;
 }
 .stage canvas { display: block; }
-.c2d { display: block; margin: 0 auto; background: #0e1726; }
+/* 寬高由 kit.js 用 CSS 變數帶進來（不寫成行內樣式，全螢幕才蓋得掉） */
+.c2d {
+  display: block; margin: 0 auto; background: #0e1726;
+  width: 100%;
+  max-width: var(--c2d-max-w, 100%);
+  min-width: var(--c2d-min-w, 0);
+}
 
 /* ---------- 全螢幕 ----------
    .fs-wrap 只包住「畫布 + 該教具的控制列」，所以進全螢幕時說明、讀數、
@@ -196,20 +202,38 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
 .fs-wrap.fs-on .stage {
   flex: 1 1 auto; min-height: 0;
   border: 0; border-radius: 0;
+  /* 預設不捲動。手機直式時 2D 圖仍會守住最小寬度而放不下，
+     那種情況由 kit.js 判斷後改成 auto。 */
   overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  /* safe：內容比容器大時退回靠左上，否則置中會把左半邊推到捲不到的地方。
+     舊瀏覽器不認得 safe 會整條宣告失效，所以先寫一行不帶 safe 的墊底。 */
+  align-items: center; justify-content: center;
+  align-items: safe center; justify-content: safe center;
 }
-/* 2D 圖平常有 max-width 上限（維持字級可讀），全螢幕時改成吃滿高度，
-   aspect-ratio 會自己把寬度算出來，比例不會跑掉。 */
+/* 2D 圖平常有 max-width 上限（維持字級可讀），全螢幕時解除。
+   實際的寬高由 kit.js 依容器比例算好後寫成行內樣式，這裡只負責
+   把平常的限制讓開。flex: none 也是必要的——不然 flex 容器會再
+   橫向壓縮它一次，那同樣是變形。 */
 .fs-wrap.fs-on .c2d {
-  max-width: none; min-width: 0;
-  width: auto; height: 100%; max-height: 100%;
+  flex: none;
+  min-width: 0; max-width: none; max-height: none;
 }
 .fs-wrap.fs-on .controls {
   flex: 0 0 auto; margin: 0;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line); background: var(--panel);
   max-height: 42vh; overflow-y: auto;
+}
+/* 手機橫拿只有 ~375 高，控制列若照桌機的寬鬆間距會吃掉三分之一，
+   圖反而縮小。矮螢幕就把它壓扁一點，高度留給圖。 */
+@media (max-height: 500px) {
+  .fs-wrap.fs-on .controls { padding: 5px 10px calc(5px + env(safe-area-inset-bottom)); gap: 6px 14px; }
+  .fs-wrap.fs-on .controls .ctl { font-size: 13px; gap: 7px; }
+  .fs-wrap.fs-on .controls .seg { gap: 4px; }
+  .fs-wrap.fs-on .controls .seg-btn,
+  .fs-wrap.fs-on .controls .btn { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+  .fs-wrap.fs-on .fs-btn { min-height: 28px; padding: 3px 9px; font-size: 12px; }
 }
 
 /* 只在窄螢幕直式時出現的提示 */
