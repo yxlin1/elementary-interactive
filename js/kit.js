@@ -251,7 +251,11 @@ const Kit = (function () {
 
     function resize() {
       const nw = host.clientWidth || w;
-      h = calcH(nw);
+      // 全螢幕時由外面在 .stage 上寫入 data-force-h，指定畫布要吃掉多少高度。
+      // 用屬性而不是直接量 host.clientHeight，是因為平常 host 的高度就是
+      // 畫布撐出來的——反過來拿它算畫布會變成循環。
+      const forced = parseInt(host.getAttribute('data-force-h') || '', 10);
+      h = forced > 0 ? forced : calcH(nw);
       camera.aspect = nw / h;
       camera.updateProjectionMatrix();
       renderer.setSize(nw, h);
@@ -282,6 +286,101 @@ const Kit = (function () {
         renderer.dispose();
         if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
+    };
+  }
+
+  /* ============================================================
+     全螢幕
+     ------------------------------------------------------------
+     把「畫布（.stage）＋控制列（.controls）」包成一個容器，只讓這兩樣
+     進全螢幕；說明、讀數、家長導引卡、練習題都留在頁面上，自然不會出現。
+     這是通用的：app.js 對每一個教具都呼叫一次，章節本身完全不用改。
+
+     iOS Safari 不支援對 <video> 以外的元素呼叫 requestFullscreen，
+     所以另外準備 position:fixed 的替代版面。兩條路徑共用同一組 CSS
+     （.fs-on），行為一致，差別只在瀏覽器自己的工具列會不會收起來。
+     ============================================================ */
+  function fullscreen(hostEl) {
+    const stage = hostEl.querySelector('.stage');
+    if (!stage) return null;                       // 沒有畫布的教具（純文字）就不加
+    const controls = hostEl.querySelector('.controls');
+
+    const wrap = el('div', { class: 'fs-wrap' });
+    stage.parentNode.insertBefore(wrap, stage);
+    wrap.appendChild(stage);
+    if (controls) wrap.appendChild(controls);
+
+    const btn = el('button', { type: 'button', class: 'fs-btn' });
+    stage.appendChild(btn);                        // .stage 是 position:relative，浮在畫布右上角
+
+    let on = false;
+
+    // 3D 場景各自監聽 window resize，發一個事件就能讓它們重新量尺寸，
+    // 不必在這裡持有每個場景的參照。
+    function reflow() { window.dispatchEvent(new Event('resize')); }
+
+    /* 全部同步做完，不用 requestAnimationFrame。
+       rAF 在「分頁不在前景」或「這一章是純 2D、沒有動畫迴圈」時可能遲遲不觸發，
+       屬性就會卡在錯誤狀態。改成直接讀 stage.clientHeight——讀取版面屬性會
+       強迫瀏覽器立刻把剛加上的 .fs-on 排版算完，量到的就是正確的可用高度。 */
+    function sizeCanvas() {
+      if (!on) stage.removeAttribute('data-force-h');
+      else stage.setAttribute('data-force-h', Math.max(200, stage.clientHeight));
+      reflow();
+    }
+
+    function paint() {
+      btn.textContent = on ? '⤢ 離開全螢幕' : '⛶ 全螢幕';
+      btn.setAttribute('aria-label', on ? '離開全螢幕' : '全螢幕');
+      wrap.classList.toggle('fs-on', on);
+      sizeCanvas();
+    }
+
+    function enter() {
+      on = true;
+      paint();
+      const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+      // 失敗（或根本沒有這個 API）也沒關係，.fs-on 的版面已經是全螢幕了
+      if (req) { const p = req.call(wrap); if (p && p.catch) p.catch(function () {}); }
+    }
+
+    function leave() {
+      on = false;
+      paint();
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl === wrap) {
+        const ex = document.exitFullscreen || document.webkitExitFullscreen;
+        if (ex) { const p = ex.call(document); if (p && p.catch) p.catch(function () {}); }
+      }
+    }
+
+    btn.addEventListener('click', function () { on ? leave() : enter(); });
+
+    // 使用者按 Esc、或用瀏覽器自己的方式離開時，把版面同步回來
+    function onFsChange() {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (on && fsEl !== wrap) { on = false; paint(); }
+    }
+    function onKey(e) { if (on && e.key === 'Escape') leave(); }
+    function onResize() { if (on) sizeCanvas(); }
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('keydown', onKey);
+    // 轉螢幕方向時要重算，但 sizeCanvas 自己也會發 resize，
+    // 所以只在全螢幕狀態下才回應，避免無窮迴圈。
+    window.addEventListener('orientationchange', onResize);
+
+    // 初始只設按鈕文字，不走 paint()——那會多發一次 resize，
+    // 讓剛建好、還沒定位完相機的場景白跑一次取景。
+    btn.textContent = '⛶ 全螢幕';
+    btn.setAttribute('aria-label', '全螢幕');
+
+    return function () {                            // 切換章節時要收乾淨
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('orientationchange', onResize);
+      if (on) leave();
     };
   }
 
@@ -510,7 +609,7 @@ const Kit = (function () {
     register: register, get: get, el: el, slider: slider, segmented: segmented,
     button: button, practice: practice, scene3d: scene3d, unitCube: unitCube,
     person: person, scenery: scenery, firstPerson: firstPerson, exitFirstPerson: exitFirstPerson,
-    keepSpriteSize: keepSpriteSize,
+    keepSpriteSize: keepSpriteSize, fullscreen: fullscreen,
     canvas2d: canvas2d, randInt: randInt, pick: pick, shuffle: shuffle, gcd: gcd
   };
 })();

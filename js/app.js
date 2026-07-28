@@ -186,6 +186,12 @@
       contentEl.innerHTML = '';
       contentEl.appendChild(inner);
       const cleanups = defs.map((d, i) => d.build(hosts[i])).filter(f => typeof f === 'function');
+      // 每個教具都補上全螢幕按鈕。這裡統一處理，章節檔完全不用改；
+      // 進全螢幕只留下畫布和它自己的控制列，其餘卡片留在頁面上。
+      defs.forEach((d, i) => {
+        const off = Kit.fullscreen(hosts[i]);
+        if (off) cleanups.push(off);
+      });
       activeCleanup = cleanups.length ? function () { cleanups.forEach(f => f()); } : null;
 
     } else {

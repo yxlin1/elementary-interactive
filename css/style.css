@@ -167,11 +167,50 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
 
 /* 寬圖在窄螢幕上自己橫向捲動，不讓整個頁面被撐寬 */
 .stage {
+  position: relative;
   background: #0e1726; border: 1px solid var(--line); border-radius: 10px;
   overflow-x: auto; overflow-y: hidden;
 }
 .stage canvas { display: block; }
 .c2d { display: block; margin: 0 auto; background: #0e1726; }
+
+/* ---------- 全螢幕 ----------
+   .fs-wrap 只包住「畫布 + 該教具的控制列」，所以進全螢幕時說明、讀數、
+   家長導引卡、練習題都不會跟著進來。原生 requestFullscreen 和
+   position:fixed 的替代方案共用 .fs-on 這一組規則。 */
+.fs-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 5;
+  padding: 6px 12px; min-height: 34px;
+  background: rgba(12, 18, 32, .78); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+  font: inherit; font-size: 13px; cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+.fs-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.fs-wrap.fs-on {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+}
+.fs-wrap.fs-on .stage {
+  flex: 1 1 auto; min-height: 0;
+  border: 0; border-radius: 0;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 2D 圖平常有 max-width 上限（維持字級可讀），全螢幕時改成吃滿高度，
+   aspect-ratio 會自己把寬度算出來，比例不會跑掉。 */
+.fs-wrap.fs-on .c2d {
+  max-width: none; min-width: 0;
+  width: auto; height: 100%; max-height: 100%;
+}
+.fs-wrap.fs-on .controls {
+  flex: 0 0 auto; margin: 0;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: var(--panel);
+  max-height: 42vh; overflow-y: auto;
+}
 
 /* 只在窄螢幕直式時出現的提示 */
 .rotate-hint { display: none; }

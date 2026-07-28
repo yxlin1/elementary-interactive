@@ -282,7 +282,10 @@ Kit.register('s6a-sun', {
             new THREE.MeshBasicMaterial({ color: col }));
           dot.position.copy(pos);
           markGroup.add(dot);
-          markGroup.add(chip(name + ' ' + clock(t), pos.clone().multiplyScalar(1.1).setY(pos.y + .55), col));
+          // 日出／日落貼著地平線，和「東」「西」方位標幾乎同一個位置
+          // （春分更是剛好重疊）。低空的標籤多抬高一些，錯開來才讀得到。
+          const lift = q.alt < .35 ? 1.7 : .55;
+          markGroup.add(chip(name + ' ' + clock(t), pos.clone().multiplyScalar(1.1).setY(pos.y + lift), col));
         });
     }
 
