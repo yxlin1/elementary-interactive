@@ -119,20 +119,35 @@
           });
         });
 
-        // 公因數列
+        /* 公因數列：一定要沿用上面兩列的<b>同一組欄位座標</b>（108 + i*34，寬 30）。
+           原本這一列自己重新排（間距 46、寬 40），等於把公因數再列一次，
+           跟上面對不起來——可是這張圖要講的就是「這一欄兩列都亮，它才掉下來」，
+           欄位不對齊，這件事就看不出來了。 */
         ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 15px "Microsoft JhengHei", sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
         ctx.fillText('公因數', 92, 246);
-        cf.forEach((v, i) => {
-          const x = 108 + i * 46;
+        let gx = null;                       // 最大公因數那一格的中心，箭頭要指它
+        all.forEach((v, i) => {
+          const x = 108 + i * 34;
+          if (x > cv.W - 30) return;
+          if (cf.indexOf(v) < 0) return;     // 不是公因數就整格留白，對齊上面沒同時亮的欄
           ctx.fillStyle = v === g ? '#fb7185' : '#fbbf24';
-          ctx.fillRect(x, 230, 40, 32);
+          ctx.fillRect(x, 230, 30, 32);
           ctx.fillStyle = '#0b1220'; ctx.textAlign = 'center';
-          ctx.fillText(v, x + 20, 247);
+          ctx.font = 'bold 14px "Microsoft JhengHei", sans-serif';
+          ctx.fillText(v, x + 15, 247);
+          if (v === g) gx = x + 15;
         });
-        ctx.fillStyle = '#fb7185'; ctx.font = '12px "Microsoft JhengHei", sans-serif';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText('↑ 紅色 = 最大公因數', 108, 268);
+        /* 箭頭要真的落在紅色那一格下面。原本固定寫在最左邊（x=108），
+           只有在最大公因數剛好是第一格（互質，g=1）時才碰巧對。 */
+        if (gx !== null) {
+          ctx.fillStyle = '#fb7185'; ctx.font = '12px "Microsoft JhengHei", sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          const label = '↑ 最大公因數';
+          const half = ctx.measureText(label).width / 2;
+          // 紅格靠邊時把字夾回畫布內，箭頭仍然指在正確的欄位上
+          ctx.fillText(label, Math.max(half + 6, Math.min(cv.W - half - 6, gx)), 268);
+        }
 
         readout.innerHTML =
           '<div class="big">' + A + ' 和 ' + B + ' 的最大公因數是 <b>' + g + '</b></div>' +
