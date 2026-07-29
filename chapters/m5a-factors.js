@@ -85,7 +85,7 @@
 
         ctx.fillStyle = '#93a3c4'; ctx.font = '13px "Microsoft JhengHei", sans-serif';
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText('把兩個數的因數都列出來，重疊的地方就是公因數', 16, 22);
+        ctx.fillText('把兩個數的因數都列出來，重疊的地方就是公因數（空格 ＝ 不是它的因數）', 16, 22);
 
         // 兩列因數，重疊者上色
         [[A, fa, 70, '#4da3ff'], [B, fb, 150, '#34d399']].forEach(([n, fs, y, col]) => {
@@ -96,12 +96,26 @@
             const x = 108 + i * 34;
             if (x > cv.W - 30) return;
             const isF = fs.indexOf(v) >= 0, isC = cf.indexOf(v) >= 0;
-            ctx.fillStyle = isC ? '#fbbf24' : isF ? col : '#1b2740';
+            /* 不是因數的格子<b>不寫數字</b>。
+               這一列要讀成「31 的因數只有 1 和 31」，但只要把 2、3、6…
+               也寫上去（就算是灰的），看起來就像那一列有七個因數，
+               正好把要教的事情蓋掉。
+               格子本身要留著——兩列的欄位得對齊，才看得出哪幾欄重疊；
+               而候選欄位是兩數因數的<b>聯集</b>，所以每一欄至少有一列
+               是亮的，欄位代表哪個數字永遠查得到。
+               留一條短橫線而不是全空，是為了讓它讀起來像「檢查過，不是」，
+               而不是「這裡壞掉沒畫出來」。 */
+            ctx.fillStyle = isC ? '#fbbf24' : isF ? col : '#141d2f';
             ctx.fillRect(x, y, 30, 32);
-            ctx.fillStyle = isF ? '#0b1220' : '#3a4c73';
-            ctx.font = 'bold 14px "Microsoft JhengHei", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(v, x + 15, y + 17);
+            if (isF) {
+              ctx.fillStyle = '#0b1220';
+              ctx.font = 'bold 14px "Microsoft JhengHei", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText(v, x + 15, y + 17);
+            } else {
+              ctx.fillStyle = '#2b3a5a';
+              ctx.fillRect(x + 10, y + 15, 10, 2);
+            }
           });
         });
 
