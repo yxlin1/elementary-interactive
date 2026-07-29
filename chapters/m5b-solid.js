@@ -307,12 +307,15 @@
           return node;
         }
 
+        /* 底面是<b>置中</b>的：x 從 -hl 到 hl、z 從 -hw 到 hw。
+           四個轉軸一定要落在這四條邊上，否則側面和頂面會整組偏移半個寬度，
+           盒子看起來就像底面滑開了。（之前這裡誤用 0 與 w，也就是「底面
+           從 z=0 到 z=w」那一套沒有置中的座標。） */
         const hl = l / 2, hw = w / 2;
-        // 前（z = +hw*2 邊）… 底面從 (-hl,0,0) 到 (hl,0,w)
-        const f1 = side(-hl, w, 1, 0, l, COL.lh, 0, 1);    // 前緣，往 +z 外
-        side(hl, 0, -1, 0, l, COL.lh, 0, -1);              // 後緣，往 -z 外
-        side(-hl, 0, 0, 1, w, COL.wh, -1, 0);              // 左緣，往 -x 外
-        side(hl, w, 0, -1, w, COL.wh, 1, 0);               // 右緣，往 +x 外
+        const f1 = side(-hl, hw, 1, 0, l, COL.lh, 0, 1);   // 前緣（z = +hw），往 +z 外
+        side(hl, -hw, -1, 0, l, COL.lh, 0, -1);            // 後緣（z = -hw），往 -z 外
+        side(-hl, -hw, 0, 1, w, COL.wh, -1, 0);            // 左緣（x = -hl），往 -x 外
+        side(hl, hw, 0, -1, w, COL.wh, 1, 0);              // 右緣（x = +hl），往 +x 外
 
         // 頂面掛在「前」那一片的上緣
         const top = new THREE.Group();
