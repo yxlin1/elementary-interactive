@@ -10,6 +10,17 @@
   let activeCleanup = null;
   let activeId = null;
 
+  /* 題庫統計（js/quiz-bank.js 由 tools/validate-quiz.js --emit 產生；沒有這個檔也不會壞） */
+  const BANK = (typeof QUIZ_BANK === 'object' && QUIZ_BANK) ? QUIZ_BANK : null;
+  function templatesFor(ids) {
+    if (!BANK) return 0;
+    return ids.reduce(function (a, id) { return a + (BANK.templates[id] || 0); }, 0);
+  }
+
+  /* 科目 → 標籤樣式（數學藍、自然綠、社會橘） */
+  const SUBJ_CLASS = { '數學': 'math', '自然': 'sci', '社會': 'soc' };
+  function subjClass(s) { return SUBJ_CLASS[s] || 'sci'; }
+
   /* ---------------- 左側章節樹 ---------------- */
   function buildTree(filter) {
     treeEl.innerHTML = '';
@@ -32,7 +43,6 @@
         if (!matched.length) return;
         gradeHasMatch = true;
 
-        const isMath = b.subject === '數學';
         const list = el('div', { class: 'book-list' });
         matched.forEach(c => {
           const btn = el('button', {
@@ -54,7 +64,7 @@
 
         const head = el('button', { class: 'book-head', type: 'button' }, [
           el('span', { class: 'caret', text: '▶' }),
-          el('span', { class: 'tag ' + (isMath ? 'math' : 'sci'), text: b.subject }),
+          el('span', { class: 'tag ' + subjClass(b.subject), text: b.subject }),
           el('span', { text: b.term }),
           el('span', { class: 'pub', text: b.publisher + '版' })
         ]);
@@ -97,6 +107,15 @@
         ]));
       });
       inner.appendChild(sl);
+    }
+
+    /* 統整／活動單元沒有新的知識內容，用 note 寫清楚它是什麼，
+       不要落到下面那段「教具會分批補上」的通用訊息。 */
+    if (c.note) {
+      inner.appendChild(el('div', { class: 'notice' }, [
+        el('h3', { text: c.note.title }),
+        el('p', { html: c.note.body })
+      ]));
     }
 
     if (c.todo) {
@@ -173,8 +192,10 @@
       const quizzes = defs.map(d => d.quiz).filter(Boolean);
       if (quizzes.length) {
         const q = el('div', { class: 'card quiz' });
+        const tpl = templatesFor(aidIds);
         q.appendChild(el('h3', {}, [
           el('span', { class: 'ico', text: '✏️' }), el('span', { text: '練習題（即時對錯 + 解題步驟）' }),
+          tpl ? el('span', { class: 'h3-note', text: '本章 ' + tpl + ' 種題型', title: '每種題型每次都會重抽數字或情境，所以實際題目遠多於這個數' }) : el('span'),
           // 進練習區：同一章的題目，但畫面上只剩題目
           el('button', { class: 'btn small h3-act', type: 'button', text: '⛶ 專心練習', title: '進入練習區，只顯示題目', onClick: () => go('practice/' + id) })
         ]));
@@ -200,11 +221,14 @@
       activeCleanup = cleanups.length ? function () { cleanups.forEach(f => f()); } : null;
 
     } else {
-      inner.appendChild(el('div', { class: 'notice' }, [
-        el('h3', { text: '本章互動教具尚未建置' }),
-        el('p', { text: '目前這一章只有課綱條目與章節結構。骨架已把 ' + c.grade + c.subject + ' 全部單元列出，教具會分批補上。' }),
-        el('p', { text: '側欄有 3D／互動徽章的章節就是已完成的。' })
-      ]));
+      // 已經用 note 說明過的單元（例如統整活動），不要再貼一次「教具待補」
+      if (!c.note) {
+        inner.appendChild(el('div', { class: 'notice' }, [
+          el('h3', { text: '本章互動教具尚未建置' }),
+          el('p', { text: '目前這一章只有課綱條目與章節結構。骨架已把 ' + c.grade + c.subject + ' 全部單元列出，教具會分批補上。' }),
+          el('p', { text: '側欄有 3D／互動徽章的章節就是已完成的。' })
+        ]));
+      }
       contentEl.innerHTML = '';
       contentEl.appendChild(inner);
     }
@@ -244,7 +268,11 @@
     if (!arg) {
       top.appendChild(navBtn('← 回首頁', ''));
       top.appendChild(el('h2', { text: '✏️ 練習區' }));
-      inner.appendChild(el('p', { class: 'lead', text: '挑一個單元，或整冊混合出題。這裡只有題目，沒有教具和說明，適合孩子自己練。' }));
+      inner.appendChild(el('p', {
+        class: 'lead',
+        html: '挑一個單元，或整冊混合出題。這裡只有題目，沒有教具和說明，適合孩子自己練。' +
+          (BANK ? '<br>目前題庫共 <b>' + BANK.templateTotal + '</b> 種題型，分布在 ' + BANK.aids + ' 個教具裡；每種題型每次都會<b>重抽數字或情境</b>，所以不會一直遇到同一題。' : '')
+      }));
       const stats = Kit.quizStats();
       VISIBLE.forEach(g => g.books.forEach(b => {
         const chs = b.chapters.filter(c => c.impl);
@@ -252,7 +280,7 @@
         const prefix = chs[0].id.split('-')[0];
         const card = el('div', { class: 'card' });
         card.appendChild(el('h3', {}, [
-          el('span', { class: 'tag ' + (b.subject === '數學' ? 'math' : 'sci'), text: b.subject }),
+          el('span', { class: 'tag ' + subjClass(b.subject), text: b.subject }),
           el('span', { text: g.grade + ' ' + b.term + '（' + b.publisher + '版）' })
         ]));
         const chips = el('div', { class: 'chips' });
@@ -261,10 +289,15 @@
           const chip = el('button', { class: 'chip', type: 'button', onClick: () => go('practice/' + c.id) }, [
             el('span', { class: 'n', text: c.no + '.' }), el('span', { text: c.title })
           ]);
+          const aidIds = c.use ? (Array.isArray(c.use) ? c.use : [c.use]) : [c.id];
+          const n = templatesFor(aidIds);
+          const bits = [];
+          if (n) bits.push(n + ' 種題型');
           if (st && st.total) {
             const best = st.best ? Object.keys(st.best).sort((x, y) => x - y).map(k => st.best[k] + '/' + k) : [];
-            chip.appendChild(el('span', { class: 'chip-stat', text: '練過 ' + st.total + ' 題' + (best.length ? '　最佳 ' + best.join('、') : '') }));
+            bits.push('練過 ' + st.total + ' 題' + (best.length ? '，最佳 ' + best.join('、') : ''));
           }
+          if (bits.length) chip.appendChild(el('span', { class: 'chip-stat', text: bits.join('　') }));
           chips.appendChild(chip);
         });
         const mixSt = stats['mix-' + prefix];
@@ -382,7 +415,7 @@
     const stdCount = Object.keys(usedStd).length;
 
     // 版本表依「顯示中的年級」自動產生，隱藏年級不會出現在這裡
-    const subjects = ['數學', '自然'];
+    const subjects = ['數學', '自然', '社會'];
     const verRows = subjects.map(sub => {
       const cells = VISIBLE.map(g => {
         const bk = g.books.filter(b => b.subject === sub);
@@ -401,7 +434,22 @@
       '<div class="stat"><div class="n">' + total + '</div><div class="l">總章節數</div></div>' +
       '<div class="stat"><div class="n">' + done + '</div><div class="l">已完成互動教具</div></div>' +
       '<div class="stat"><div class="n">' + stdCount + '</div><div class="l">掛載的課綱條目</div></div>' +
+      (BANK ? '<div class="stat"><div class="n">' + BANK.templateTotal + '</div><div class="l">練習題題型樣板</div></div>' : '') +
       '</div>' +
+
+      (BANK
+        ? '<div class="card"><h3><span class="ico">✏️</span><span>題庫有多大</span></h3>' +
+          '<p class="src-note">練習題不是固定的題目清單，而是<b>' + BANK.templateTotal + ' 種題型樣板</b>' +
+          '（分布在 ' + BANK.aids + ' 個教具裡）。每種樣板<b>每次都會重抽數字或情境</b>——' +
+          '例如「12 和 18 的最大公因數」下一次可能變成「30 和 42」，所以實際能出的題目遠多於 ' + BANK.templateTotal + ' 題。</p>' +
+          '<p class="src-note">品質是<b>用程式驗算的</b>，不是靠眼睛看：每個教具各隨機抽 ' + BANK.drawsPerAid +
+          ' 次、合計 <b>' + BANK.checked.toLocaleString() + ' 題</b>，檢查選項索引、選項重複、空選項、答案型別、' +
+          'NaN／undefined、解題步驟齊全；其中 ' + BANK.recomputed.toLocaleString() +
+          ' 題純算式再從題目文字<b>重算一次答案</b>比對。目前<b>零錯誤</b>。</p>' +
+          '<p class="src-note">重跑方式：<code>node tools/validate-quiz.js</code>；' +
+          '加 <code>--emit</code> 會更新這一頁的數字。統計產生於 ' + BANK.generated + '。</p>' +
+          '</div>'
+        : '') +
 
       '<div class="card"><h3><span class="ico">📚</span><span>版本依據</span></h3>' +
       '<p class="src-note">章節目錄依學校 <b>115 學年度官方課程計畫</b>建置（2026 年 8 月起適用，上、下學期版本一致）：</p>' +

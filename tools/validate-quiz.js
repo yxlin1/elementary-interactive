@@ -16,7 +16,7 @@ const regIds = [];
 for (const f of files) for (const m of fs.readFileSync(f, 'utf8').matchAll(/Kit\.register\('([^']+)'/g)) regIds.push(m[1]);
 
 const N = parseInt(process.argv[2] || '4000', 10);
-const only = process.argv.slice(3);
+const only = process.argv.slice(3).filter(a => a.charAt(0) !== '-');   // 旗標（--emit）不算教具 id
 const strip = s => String(s).replace(/<[^>]+>/g, '');
 const pattern = q => strip(q).replace(/[0-9０-９.,\/又]+/g, '#').replace(/\s+/g, ' ').slice(0, 70);
 const bad = s => /NaN|undefined|Infinity|null/.test(String(s));
@@ -77,4 +77,21 @@ for (const id of regIds) {
   }
 }
 console.log('\n===== 總結：' + totalQ + ' 題，' + totalErr + ' 個錯誤；其中 ' + recomputed + ' 題純算式已從題目重算比對 =====');
+
+// --emit：把統計寫進 js/quiz-bank.js，網頁上就看得到題庫有多大
+if (process.argv.includes('--emit')) {
+  const tpl = {};
+  summary.forEach(s => { tpl[s.id] = s.templates; });
+  const total = summary.reduce((a, s) => a + s.templates, 0);
+  const out = '/* 由 tools/validate-quiz.js --emit 產生，請勿手改。\n' +
+    '   templates = 每個教具「題目樣板」的種類數（題目文字去掉數字後的不同句型）；\n' +
+    '   每種樣板每次都會重抽數字或情境，所以實際題目遠多於這個數。 */\n' +
+    'const QUIZ_BANK = ' + JSON.stringify({
+      generated: new Date().toISOString().slice(0, 10),
+      drawsPerAid: N, checked: totalQ, recomputed: recomputed,
+      aids: summary.length, templateTotal: total, templates: tpl
+    }, null, 1) + ';\n';
+  fs.writeFileSync('js/quiz-bank.js', out);
+  console.log('已寫出 js/quiz-bank.js（' + summary.length + ' 個教具、' + total + ' 種樣板）');
+}
 console.log(summary.map(s => s.id.padEnd(13) + ' 樣板 ' + String(s.templates).padStart(3) + (s.errors ? '  ✗' + s.errors : '')).join('\n'));

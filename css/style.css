@@ -17,6 +17,7 @@
   --warn: #fbbf24;
   --math: #4da3ff;
   --sci: #34d399;
+  --soc: #fb923c;
   --radius: 12px;
   --sidebar-w: 320px;
 }
@@ -113,6 +114,7 @@ html, body {
 }
 .tag.math { color: var(--math); }
 .tag.sci { color: var(--sci); }
+.tag.soc { color: var(--soc); }
 .book-head .pub { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 400; }
 
 .book-list { display: none; padding: 2px 0 8px 8px; }
@@ -424,6 +426,10 @@ body.practice-mode .inner, body.nav-collapsed.practice-mode .inner { padding-top
 .card.quiz.focus .pr-input { font-size: 20px; width: 180px; min-height: 54px; }
 .card.quiz.focus .pr-fb { font-size: 17px; }
 .card.quiz.focus .pr-steps { font-size: 15.5px; }
+.card > h3 .h3-note {
+  font-size: 12px; font-weight: 400; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px;
+}
 .card > h3 .h3-act { margin-left: auto; }
 .btn.small { padding: 5px 11px; min-height: 32px; font-size: 13px; }
 
