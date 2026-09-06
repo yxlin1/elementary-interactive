@@ -2,7 +2,7 @@
 
 ### 🔗 線上版：https://yxlin1.github.io/elementary-interactive/
 
-目前版本 **v0.7.0**（側欄左上角會顯示；版本號在 [`js/version.js`](js/version.js)）。
+目前版本 **v0.7.1**（側欄左上角會顯示；版本號在 [`js/version.js`](js/version.js)）。
 
 給家長在家陪讀用。手機、平板、電腦都可以直接開。
 

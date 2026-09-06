@@ -668,14 +668,35 @@ var Tutor = (function () {
   }
 
   /* 章節頁上的入口。沒設定 token 就回 null，app.js 什麼都不會加。 */
+  var btnWatch = null;
   function chapterButton() {
     if (!enabled()) return null;
     var b = Kit.button('🧑‍🏫 問這一章的小老師', function () { openChat(); }, 'primary');
     b.className += ' tutor-chapter-btn';
+
+    /* 章節頁上如果連浮動鈕一起顯示，同一個入口會出現兩次。
+       但章節很長，這顆按鈕捲上去之後又點不到——所以讓浮動鈕
+       只在這顆被捲出畫面之後才現身。 */
+    if (btnWatch) { btnWatch.disconnect(); btnWatch = null; }
+    if (typeof IntersectionObserver === 'function') {
+      btnWatch = new IntersectionObserver(function (es) {
+        showFab(!es[0].isIntersecting);
+      });
+      // 元素還沒進 DOM，等 app.js 掛上去再觀察
+      setTimeout(function () { if (btnWatch && b.parentNode) btnWatch.observe(b); }, 0);
+      showFab(false);
+    } else {
+      // 沒有 IntersectionObserver（很舊的瀏覽器）就單純不顯示浮動鈕
+      showFab(false);
+    }
     return b;
   }
 
   /* ---------------- 浮動按鈕 ---------------- */
+  function showFab(on) {
+    var f = document.getElementById('tutorFab');
+    if (f) f.hidden = !on;
+  }
   function mountFab() {
     var old = document.getElementById('tutorFab');
     if (!enabled()) { if (old) old.remove(); return; }
@@ -684,6 +705,19 @@ var Tutor = (function () {
     fab.id = 'tutorFab';
     fab.className += ' tutor-fab';
     document.body.appendChild(fab);
+  }
+
+  /* 離開章節頁（回首頁、進練習區）時，浮動鈕要自己回來。
+     app.js 重畫完才知道有沒有章節按鈕，所以排到這一輪之後再看 DOM。 */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('hashchange', function () {
+      setTimeout(function () {
+        if (!document.querySelector('.tutor-chapter-btn')) {
+          if (btnWatch) { btnWatch.disconnect(); btnWatch = null; }
+          showFab(true);
+        }
+      }, 0);
+    });
   }
 
   /* ---------------- 首頁的設定卡片 ---------------- */
