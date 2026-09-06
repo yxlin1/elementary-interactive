@@ -18,6 +18,12 @@
   }
 
   /* 科目 → 標籤樣式（數學藍、自然綠、社會橘） */
+  /* 不同領綱的條目代碼會撞號（社會和英語都有 Ab-Ⅲ-1、Ac-Ⅲ-4），
+     所以 STANDARDS 的 key 允許加科目前綴，寫成 '英|Ac-Ⅲ-4'。
+     畫面上只顯示 | 後面的代碼，查表時前綴優先、找不到再退回裸代碼。 */
+  function stdCode(s) { const i = s.indexOf('|'); return i < 0 ? s : s.slice(i + 1); }
+  function stdText(s) { return STANDARDS[s] || STANDARDS[stdCode(s)] || '（條目原文待補）'; }
+
   const SUBJ_CLASS = { '數學': 'math', '自然': 'sci', '社會': 'soc', '國語': 'chi', '英語': 'eng' };
   function subjClass(s) { return SUBJ_CLASS[s] || 'sci'; }
 
@@ -37,8 +43,8 @@
           if (!q) return true;
           if (c.title.indexOf(q) >= 0) return true;
           if (b.term.indexOf(q) >= 0 || b.subject.indexOf(q) >= 0 || b.publisher.indexOf(q) >= 0) return true;
-          return c.std.some(s => s.toUpperCase().indexOf(q.toUpperCase()) >= 0 ||
-            (STANDARDS[s] || '').indexOf(q) >= 0);
+          return c.std.some(s => stdCode(s).toUpperCase().indexOf(q.toUpperCase()) >= 0 ||
+            stdText(s).indexOf(q) >= 0);
         });
         if (!matched.length) return;
         gradeHasMatch = true;
@@ -102,8 +108,8 @@
       const sl = el('div', { class: 'std-list' });
       c.std.forEach(code => {
         sl.appendChild(el('div', { class: 'std' }, [
-          el('code', { text: code }),
-          el('span', { text: STANDARDS[code] || '（條目原文待補）' })
+          el('code', { text: stdCode(code) }),
+          el('span', { text: stdText(code) })
         ]));
       });
       inner.appendChild(sl);
