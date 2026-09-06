@@ -535,3 +535,120 @@ body.practice-mode .inner, body.nav-collapsed.practice-mode .inner { padding-top
 @media (max-width: 860px) and (orientation: landscape) {
   .rotate-hint { display: none; }
 }
+
+/* ============================================================
+   線上小老師（js/tutor.js）— 沒設定 token 時這些元素根本不會建出來
+   ============================================================ */
+
+.tutor-fab {
+  position: fixed; right: 18px; bottom: 18px; z-index: 60;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+  border-radius: 999px; padding: 11px 18px;
+}
+
+.tutor-panel {
+  position: fixed; right: 18px; bottom: 78px; z-index: 61;
+  width: min(420px, calc(100vw - 36px));
+  max-height: min(560px, calc(100vh - 120px));
+  display: none; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 14px 40px rgba(0, 0, 0, .55);
+  overflow: hidden;
+}
+.tutor-panel.on { display: flex; }
+
+.tutor-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.tutor-title { font-weight: 700; }
+.tutor-who { color: var(--muted); font-size: 12px; margin-right: auto; }
+
+.tutor-body {
+  flex: 1 1 auto; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.tutor-msg {
+  max-width: 88%; padding: 9px 12px; border-radius: 12px;
+  font-size: 15px; line-height: 1.65;
+  /* 模型輸出可能含換行，要保留；長英文單字要能斷 */
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.tutor-msg.bot { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--line); }
+.tutor-msg.me { align-self: flex-end; background: rgba(77, 163, 255, .16); border: 1px solid rgba(77, 163, 255, .38); }
+.tutor-say { margin-left: 8px; vertical-align: middle; }
+
+.tutor-row {
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 12px; border-top: 1px solid var(--line); background: var(--panel-2);
+}
+.tutor-input {
+  flex: 1 1 auto; resize: none; font: inherit; font-size: 15px;
+  color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+.tutor-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tutor-rec { background: rgba(251, 113, 133, .2); border-color: var(--no); }
+
+.tutor-foot {
+  margin: 0; padding: 8px 12px 10px; font-size: 11.5px; color: var(--muted);
+  border-top: 1px solid var(--line); background: var(--panel-2);
+}
+
+@media (max-width: 720px) {
+  .tutor-panel {
+    right: 0; left: 0; bottom: 0; width: 100%;
+    max-height: 82vh; border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .tutor-fab { right: 12px; bottom: 12px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tutor-panel.on { animation: tutorIn .16s ease-out; }
+  @keyframes tutorIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+
+/* 小老師設定卡的下拉與輸入框。站上的 .ctl 是 display:flex 的控制列，
+   直接套在 input 上會讓輸入框縮成一小截，所以另開一個 class。 */
+.tutor-field {
+  display: block; width: 100%; margin: 0 0 8px;
+  font: inherit; font-size: 15px; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 11px;
+}
+.tutor-field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.card .ctl { margin: 2px 0; }
+.card .ctl input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); flex: 0 0 auto; }
+
+/* 章節頁的先備知識列 */
+.pre-list {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+}
+.pre-label {
+  font-size: 12.5px; color: var(--muted);
+  border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px;
+}
+.pre-link {
+  font-size: 13.5px; color: var(--accent); text-decoration: none;
+  background: rgba(77, 163, 255, .1); border: 1px solid rgba(77, 163, 255, .3);
+  border-radius: 999px; padding: 4px 12px;
+}
+.pre-link:hover { background: rgba(77, 163, 255, .2); }
+.pre-note { font-size: 12.5px; color: var(--muted); }
+.tutor-chapter-btn { border-radius: 999px; }
+
+/* 語音提問的狀態列 */
+.tutor-mic-note {
+  margin: 0; padding: 7px 12px; font-size: 12.5px; color: var(--muted);
+  background: var(--panel-2); border-top: 1px solid var(--line);
+}
+.tutor-row .btn.tutor-rec {
+  background: rgba(251, 113, 133, .22); border-color: var(--no); color: var(--text);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tutor-row .btn.tutor-rec { animation: tutorRec 1.1s ease-in-out infinite; }
+  @keyframes tutorRec { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+}

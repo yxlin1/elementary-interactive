@@ -5,7 +5,7 @@ const QUIZ_BANK = {
  "generated": "2026-09-06",
  "drawsPerAid": 4000,
  "checked": 248000,
- "recomputed": 5630,
+ "recomputed": 5426,
  "aids": 62,
  "templateTotal": 715,
  "templates": {

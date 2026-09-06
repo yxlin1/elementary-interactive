@@ -293,51 +293,51 @@ const CURRICULUM = [
       {
         subject: '數學', publisher: '南一', term: '五上',
         chapters: [
-          { id: 'n5a-u1',  no: 1,  title: '折線圖',                     std: ['D-5-1'], impl: true, kind: '2d' },
-          { id: 'n5a-u2',  no: 2,  title: '因數和倍數',                 std: ['N-5-3'], impl: true, kind: '2d', use: ['m5a-u2', 'm5a-u3'] },
-          { id: 'n5a-u3',  no: 3,  title: '多邊形',                     std: ['S-5-1'], impl: true, kind: '2d', use: 'm5a-u5' },
-          { id: 'n5a-u4',  no: 4,  title: '擴分、約分和通分',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u4' },
-          { id: 'n5a-u5',  no: 5,  title: '線對稱圖形',                 std: ['S-5-4'], impl: true, kind: '2d', use: 'm5a-u7' },
-          { id: 'n5a-u6',  no: 6,  title: '異分母分數的加減',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u6' },
-          { id: 'n5a-u7',  no: 7,  title: '整數四則計算',               std: ['R-5-1', 'R-5-2', 'N-5-2'], impl: true, kind: '2d', use: 'm5a-u8' },
-          { id: 'n5a-u8',  no: 8,  title: '平行四邊形、三角形和梯形的面積', std: ['S-5-2'], impl: true, kind: '2d', use: 'm5a-u9' },
-          { id: 'n5a-u9',  no: 9,  title: '時間的乘除',                 std: ['N-5-16'], impl: true, kind: '2d', use: 'm5b-u9' },
-          { id: 'n5a-u10', no: 10, title: '正方體和長方體',             std: ['S-5-5'], impl: true, kind: '3d', use: ['m5b-u7', 'm5b-u1'] }
+          { id: 'n5a-u1',  no: 1,  title: '折線圖',                     std: ['D-5-1'], impl: true, kind: '2d' , pre: ['m4a-u10'] },
+          { id: 'n5a-u2',  no: 2,  title: '因數和倍數',                 std: ['N-5-3'], impl: true, kind: '2d', use: ['m5a-u2', 'm5a-u3'] , pre: ['m4a-u6'] },
+          { id: 'n5a-u3',  no: 3,  title: '多邊形',                     std: ['S-5-1'], impl: true, kind: '2d', use: 'm5a-u5' , pre: ['m4b-u3', 'm4a-u3'] },
+          { id: 'n5a-u4',  no: 4,  title: '擴分、約分和通分',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u4' , pre: ['n5a-u2', 'm4b-u8'] },
+          { id: 'n5a-u5',  no: 5,  title: '線對稱圖形',                 std: ['S-5-4'], impl: true, kind: '2d', use: 'm5a-u7' , pre: ['m4a-u7'] },
+          { id: 'n5a-u6',  no: 6,  title: '異分母分數的加減',           std: ['N-5-4'], impl: true, kind: '2d', use: 'm5a-u6' , pre: ['n5a-u4', 'm4b-u8'] },
+          { id: 'n5a-u7',  no: 7,  title: '整數四則計算',               std: ['R-5-1', 'R-5-2', 'N-5-2'], impl: true, kind: '2d', use: 'm5a-u8' , pre: ['m4b-u2', 'm4a-u8'] },
+          { id: 'n5a-u8',  no: 8,  title: '平行四邊形、三角形和梯形的面積', std: ['S-5-2'], impl: true, kind: '2d', use: 'm5a-u9' , pre: ['m4b-u7', 'm4b-u3'] },
+          { id: 'n5a-u9',  no: 9,  title: '時間的乘除',                 std: ['N-5-16'], impl: true, kind: '2d', use: 'm5b-u9' , pre: ['m4b-u9', 'm4a-u6'] },
+          { id: 'n5a-u10', no: 10, title: '正方體和長方體',             std: ['S-5-5'], impl: true, kind: '3d', use: ['m5b-u7', 'm5b-u1'] , pre: ['m4b-u5'] }
         ]
       },
       {
         subject: '數學', publisher: '南一', term: '五下',
         chapters: [
-          { id: 'n5b-u1',  no: 1,  title: '分數的計算',         std: ['N-5-5', 'N-5-6', 'N-5-7'], impl: true, kind: '2d', use: 'm5b-u2' },
-          { id: 'n5b-u2',  no: 2,  title: '數的十進位結構',     std: ['N-5-1'], impl: true, kind: '2d', use: ['m5b-u5', 'm5a-u1'] },
-          { id: 'n5b-u3',  no: 3,  title: '小數的乘法',         std: ['N-5-8'], impl: true, kind: '2d', use: 'm5b-u4' },
-          { id: 'n5b-u4',  no: 4,  title: '扇形',               std: ['S-5-3'], impl: true, kind: '2d', use: 'm5a-u5' },
-          { id: 'n5b-u5',  no: 5,  title: '體積',               std: ['N-5-14', 'S-5-5'], impl: true, kind: '3d', use: 'm5b-u1' },
-          { id: 'n5b-u6',  no: 6,  title: '整數、小數除以整數', std: ['N-5-9', 'N-5-11'], impl: true, kind: '2d', use: 'm5b-u6' },
-          { id: 'n5b-u7',  no: 7,  title: '生活中的大單位',     std: ['N-5-12', 'N-5-13'], impl: true, kind: '2d', use: 'm5b-u10' },
-          { id: 'n5b-u8',  no: 8,  title: '比率和百分率',       std: ['N-5-10'], impl: true, kind: '2d', use: 'm5b-u8' },
-          { id: 'n5b-u9',  no: 9,  title: '容積和容量',         std: ['N-5-15'], impl: true, kind: '3d', use: 'm5b-u3' },
-          { id: 'n5b-u10', no: 10, title: '柱體、錐體和球體',   std: ['S-5-7', 'S-5-6'], impl: true, kind: '3d', use: 'm5a-u10' }
+          { id: 'n5b-u1',  no: 1,  title: '分數的計算',         std: ['N-5-5', 'N-5-6', 'N-5-7'], impl: true, kind: '2d', use: 'm5b-u2' , pre: ['n5a-u6', 'n5a-u4'] },
+          { id: 'n5b-u2',  no: 2,  title: '數的十進位結構',     std: ['N-5-1'], impl: true, kind: '2d', use: ['m5b-u5', 'm5a-u1'] , pre: ['m4a-u9', 'm4a-u1'] },
+          { id: 'n5b-u3',  no: 3,  title: '小數的乘法',         std: ['N-5-8'], impl: true, kind: '2d', use: 'm5b-u4' , pre: ['n5b-u2', 'm4b-u6'] },
+          { id: 'n5b-u4',  no: 4,  title: '扇形',               std: ['S-5-3'], impl: true, kind: '2d', use: 'm5a-u5' , pre: ['m4a-u3', 'n5a-u3'] },
+          { id: 'n5b-u5',  no: 5,  title: '體積',               std: ['N-5-14', 'S-5-5'], impl: true, kind: '3d', use: 'm5b-u1' , pre: ['n5a-u10', 'm4b-u7'] },
+          { id: 'n5b-u6',  no: 6,  title: '整數、小數除以整數', std: ['N-5-9', 'N-5-11'], impl: true, kind: '2d', use: 'm5b-u6' , pre: ['m4a-u6', 'n5b-u2'] },
+          { id: 'n5b-u7',  no: 7,  title: '生活中的大單位',     std: ['N-5-12', 'N-5-13'], impl: true, kind: '2d', use: 'm5b-u10' , pre: ['m4a-u5', 'n5b-u2'] },
+          { id: 'n5b-u8',  no: 8,  title: '比率和百分率',       std: ['N-5-10'], impl: true, kind: '2d', use: 'm5b-u8' , pre: ['n5a-u4', 'n5b-u2'], preNote: '四年級的「幾分之幾」與二位小數的讀法' },
+          { id: 'n5b-u9',  no: 9,  title: '容積和容量',         std: ['N-5-15'], impl: true, kind: '3d', use: 'm5b-u3' , pre: ['n5b-u5'] },
+          { id: 'n5b-u10', no: 10, title: '柱體、錐體和球體',   std: ['S-5-7', 'S-5-6'], impl: true, kind: '3d', use: 'm5a-u10' , pre: ['n5a-u10', 'n5a-u3'] }
         ]
       },
       {
         /* 自然單元名稱與活動，取自同一份 115 官方課程計畫 */
         subject: '自然', publisher: '康軒', term: '五上',
         chapters: [
-          { id: 's5a-u1', no: 1, title: '動物世界',     std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'], impl: true, kind: '2d' },
-          { id: 's5a-u2', no: 2, title: '探索聲光世界', std: ['INe-Ⅲ-6', 'INe-Ⅲ-8', 'INe-Ⅲ-7'], impl: true, kind: '2d' },
+          { id: 's5a-u1', no: 1, title: '動物世界',     std: ['INb-Ⅲ-6', 'INe-Ⅲ-11', 'INd-Ⅲ-4'], impl: true, kind: '2d' , pre: ['s4b-u3'] },
+          { id: 's5a-u2', no: 2, title: '探索聲光世界', std: ['INe-Ⅲ-6', 'INe-Ⅲ-8', 'INe-Ⅲ-7'], impl: true, kind: '2d' , pre: ['s4a-u3'] },
           { id: 's5a-u3', no: 3, title: '神祕的天空',   std: ['INc-Ⅲ-13', 'INc-Ⅲ-15', 'INc-Ⅲ-14'], impl: true, kind: '3d',
-            use: ['s6a-sun', 'sky-solar', 'sky-stars'] },   // 三個教具 ＝ 課本三個活動
-          { id: 's5a-u4', no: 4, title: '燃燒與生鏽',   std: ['INe-Ⅲ-3', 'INa-Ⅲ-4'], impl: true, kind: '2d' }
+            use: ['s6a-sun', 'sky-solar', 'sky-stars'] , pre: ['s4a-u1', 's4b-u1'] },   // 三個教具 ＝ 課本三個活動
+          { id: 's5a-u4', no: 4, title: '燃燒與生鏽',   std: ['INe-Ⅲ-3', 'INa-Ⅲ-4'], impl: true, kind: '2d' , pre: ['s4b-u4'], preNote: '四年級學過的物質變化，以及空氣裡有氧氣' }
         ]
       },
       {
         subject: '自然', publisher: '康軒', term: '五下',
         chapters: [
-          { id: 's5b-u1', no: 1, title: '力與運動',         std: ['INd-Ⅲ-13', 'INc-Ⅲ-5', 'INc-Ⅲ-6'], impl: true, kind: '2d' },
-          { id: 's5b-u2', no: 2, title: '大地的奧祕',       std: ['INd-Ⅲ-8', 'INd-Ⅲ-9', 'INc-Ⅲ-11'], impl: true, kind: '2d' },
-          { id: 's5b-u3', no: 3, title: '植物世界面面觀',   std: ['INb-Ⅲ-7', 'INa-Ⅲ-9', 'INd-Ⅲ-6'], impl: true, kind: '2d' },
-          { id: 's5b-u4', no: 4, title: '熱的作用與傳播',   std: ['INa-Ⅲ-8', 'INe-Ⅲ-2', 'INa-Ⅲ-5'], impl: true, kind: '2d' }
+          { id: 's5b-u1', no: 1, title: '力與運動',         std: ['INd-Ⅲ-13', 'INc-Ⅲ-5', 'INc-Ⅲ-6'], impl: true, kind: '2d' , preNote: '四年級的推、拉、重量等生活經驗，不需要別章的內容' },
+          { id: 's5b-u2', no: 2, title: '大地的奧祕',       std: ['INd-Ⅲ-8', 'INd-Ⅲ-9', 'INc-Ⅲ-11'], impl: true, kind: '2d' , pre: ['s4b-u4', 's4b-u2'] },
+          { id: 's5b-u3', no: 3, title: '植物世界面面觀',   std: ['INb-Ⅲ-7', 'INa-Ⅲ-9', 'INd-Ⅲ-6'], impl: true, kind: '2d' , pre: ['s5a-u1'] },
+          { id: 's5b-u4', no: 4, title: '熱的作用與傳播',   std: ['INa-Ⅲ-8', 'INe-Ⅲ-2', 'INa-Ⅲ-5'], impl: true, kind: '2d' , pre: ['s4b-u2'] }
         ]
       },
       {
@@ -346,9 +346,9 @@ const CURRICULUM = [
         subject: '社會', publisher: '翰林', term: '五上',
         chapters: [
           { id: 'soc5a-u1', no: 1, title: '臺灣的位置與先民足跡', std: ['Ab-Ⅲ-1', 'Ab-Ⅲ-3', 'Cb-Ⅲ-2'], impl: true, kind: '2d' },
-          { id: 'soc5a-u2', no: 2, title: '臺灣登上國際舞臺',     std: ['Af-Ⅲ-2', 'Cb-Ⅲ-1', 'Cb-Ⅲ-2'], impl: true, kind: '2d' },
-          { id: 'soc5a-u3', no: 3, title: '成為清帝國的領土',     std: ['Cb-Ⅲ-1', 'Cb-Ⅲ-2', 'Cc-Ⅲ-2'], impl: true, kind: '2d' },
-          { id: 'soc5a-u4', no: 4, title: '土地的利用與變遷',     std: ['Ab-Ⅲ-3', 'Bc-Ⅲ-1', 'Ca-Ⅲ-1', 'Ca-Ⅲ-2'], impl: true, kind: '2d' },
+          { id: 'soc5a-u2', no: 2, title: '臺灣登上國際舞臺',     std: ['Af-Ⅲ-2', 'Cb-Ⅲ-1', 'Cb-Ⅲ-2'], impl: true, kind: '2d' , pre: ['soc5a-u1'] },
+          { id: 'soc5a-u3', no: 3, title: '成為清帝國的領土',     std: ['Cb-Ⅲ-1', 'Cb-Ⅲ-2', 'Cc-Ⅲ-2'], impl: true, kind: '2d' , pre: ['soc5a-u2'] },
+          { id: 'soc5a-u4', no: 4, title: '土地的利用與變遷',     std: ['Ab-Ⅲ-3', 'Bc-Ⅲ-1', 'Ca-Ⅲ-1', 'Ca-Ⅲ-2'], impl: true, kind: '2d' , pre: ['soc5a-u1', 'soc5a-u3'] },
           {
             id: 'soc5a-u5', no: 5, title: '製作小書看見臺灣',
             std: ['Ab-Ⅲ-1', 'Bc-Ⅲ-1', 'Ca-Ⅲ-1', 'Cb-Ⅲ-2'],
@@ -364,7 +364,7 @@ const CURRICULUM = [
                 '這剛好對到第四單元的課綱條目 Ca-Ⅲ-2「土地利用反映過去和現在的環境變遷」，' +
                 '而且孩子會記得比課本上任何一句話都久。'
             }
-          }
+          , pre: ['soc5a-u1', 'soc5a-u2', 'soc5a-u3', 'soc5a-u4'] }
         ]
       },
       {
@@ -375,19 +375,19 @@ const CURRICULUM = [
           {
             id: 'soc5b-u1', no: 1, title: '日本統治下的臺灣',
             std: ['Cb-Ⅲ-1', 'Cb-Ⅲ-2', 'Cc-Ⅲ-2', 'Ba-Ⅲ-1'], impl: true, kind: '2d'
-          },
+          , pre: ['soc5a-u3'] },
           {
             id: 'soc5b-u2', no: 2, title: '生活中的文化展現',
             std: ['Bc-Ⅲ-1', 'Bb-Ⅲ-1', 'Cb-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['soc5a-u4', 'soc5b-u1'] },
           {
             id: 'soc5b-u3', no: 3, title: '走向民主的中華民國',
             std: ['Cd-Ⅲ-1', 'Cd-Ⅲ-2', 'Ac-Ⅲ-4', 'Cb-Ⅲ-1'], impl: true, kind: '2d'
-          },
+          , pre: ['soc5b-u1'] },
           {
             id: 'soc5b-u4', no: 4, title: '從臺灣探索世界文化',
             std: ['Aa-Ⅲ-2', 'Bc-Ⅲ-1', 'Cb-Ⅲ-2', 'Ba-Ⅲ-1'], impl: true, kind: '2d'
-          },
+          , pre: ['soc5b-u2'] },
           {
             id: 'soc5b-u5', no: 5, title: '時空採訪員',
             std: ['Cb-Ⅲ-1', 'Ba-Ⅲ-1', 'Cc-Ⅲ-1'],
@@ -403,7 +403,7 @@ const CURRICULUM = [
                 '這剛好對到課綱 Ba-Ⅲ-1「不同的生活背景與經驗，會使其對社會事務的觀點與感受產生差異」，' +
                 '而且是課本永遠給不了的東西。'
             }
-          }
+          , pre: ['soc5b-u1', 'soc5b-u3'] }
         ]
       },
       {
@@ -415,19 +415,19 @@ const CURRICULUM = [
           {
             id: 'chi5a-u1', no: 1, title: '當我們同在一起',
             std: ['4-III-2', '4-III-4', '1-III-2', '6-III-2'], impl: true, kind: '2d'
-          },
+          , preNote: '四年級學過的部首查字典與抓段落大意' },
           {
             id: 'chi5a-u2', no: 2, title: '生活大小事',
             std: ['5-III-6', '5-III-9', '6-III-6'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5a-u1'] },
           {
             id: 'chi5a-u3', no: 3, title: '自然的樂章',
             std: ['5-III-1', '6-III-4', '6-III-6', '2-III-4'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5a-u1'] },
           {
             id: 'chi5a-u4', no: 4, title: '平凡中的特別',
             std: ['5-III-5', '5-III-7', '5-III-8', '6-III-2'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5a-u2'] },
           {
             id: 'chi5a-u5', no: 5, title: '享閱讀',
             std: ['5-III-9', '5-III-7'],
@@ -441,7 +441,7 @@ const CURRICULUM = [
                 '<b>另一個角度：</b>問他「作者為什麼要寫這篇？」' +
                 '如果他答得出來，就已經達到 5-III-7「提出自己的觀點，評述文本的內容」了。'
             }
-          }
+          , pre: ['chi5a-u1', 'chi5a-u3'] }
         ]
       },
       {
@@ -452,11 +452,11 @@ const CURRICULUM = [
           {
             id: 'chi5b-u1', no: 1, title: '旅人筆記',
             std: ['6-III-3', '5-III-3', '4-III-2', '2-III-1'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5a-u3'] },
           {
             id: 'chi5b-u2', no: 2, title: '與愛相遇',
             std: ['1-III-1', '2-III-2', '6-III-3', '5-III-7'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5a-u4'] },
           {
             id: 'chi5b-r1', no: 3, title: '享閱讀一',
             std: ['5-III-3', '5-III-11'],
@@ -469,15 +469,15 @@ const CURRICULUM = [
                 '（第三單元教具的「事實或意見」模式剛好用得上）、「你同不同意他的看法？為什麼？」<br><br>' +
                 '第三個問題最重要，那是課綱 5-III-11「辨識文本中議題的訊息或觀點」在做的事。'
             }
-          },
+          , pre: ['chi5b-u1', 'chi5b-u2'] },
           {
             id: 'chi5b-u3', no: 4, title: '生活與學習',
             std: ['5-III-4', '5-III-5', '6-III-5', '5-III-1'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5b-u2'] },
           {
             id: 'chi5b-u4', no: 5, title: '精彩故事集',
             std: ['4-III-3', '5-III-3', '6-III-3', '5-III-7'], impl: true, kind: '2d'
-          },
+          , pre: ['chi5b-u3', 'chi5a-u4'] },
           {
             id: 'chi5b-r2', no: 6, title: '享閱讀二',
             std: ['5-III-3', '5-III-12'],
@@ -490,7 +490,7 @@ const CURRICULUM = [
                 '重點放在第三、四塊的<b>「為什麼」</b>，那是分數所在，' +
                 '也是課綱 5-III-12 說的「解讀與判斷」。'
             }
-          }
+          , pre: ['chi5b-u3', 'chi5b-u4'] }
         ]
       },
       {
@@ -501,15 +501,15 @@ const CURRICULUM = [
           {
             id: 'eng5a-u0', no: 0, title: 'Get Ready　字母拼讀與數字',
             std: ['1-Ⅲ-1', '英|Ab-Ⅲ-5', '2-Ⅲ-1'], impl: true, kind: '2d'
-          },
+          , preNote: '三、四年級學過的 26 個字母大小寫與字母音' },
           {
             id: 'eng5a-u1', no: 1, title: 'Unit 1　The Best Drink',
             std: ['1-Ⅲ-6', '2-Ⅲ-2', '3-Ⅲ-1', '英|Ad-Ⅲ-2', '英|Ac-Ⅲ-4'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5a-u0'] },
           {
             id: 'eng5a-u2', no: 2, title: "Unit 2　Let's Make Fruit Salad",
             std: ['1-Ⅲ-9', '2-Ⅲ-8', '3-Ⅲ-4', '英|Ad-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5a-u1'] },
           {
             id: 'eng5a-r1', no: 3, title: 'Review 1',
             std: ['1-Ⅲ-1', '英|Ab-Ⅲ-5', '英|Ac-Ⅲ-4'],
@@ -521,15 +521,15 @@ const CURRICULUM = [
                 '<b>怎麼用：</b>直接開前面三課的教具各玩一次，或到<b>練習區</b>選「五年級英語（五上）整冊混合」，' +
                 '一次抽到三課的題目，最接近複習卷的感覺。'
             }
-          },
+          , pre: ['eng5a-u1', 'eng5a-u2'] },
           {
             id: 'eng5a-u3', no: 4, title: 'Unit 3　A Fun Day',
             std: ['1-Ⅲ-9', '2-Ⅲ-7', '3-Ⅲ-4', '英|Ac-Ⅲ-3'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5a-u0', 'eng5a-u2'] },
           {
             id: 'eng5a-u4', no: 5, title: 'Unit 4　My Favorite Subject',
             std: ['1-Ⅲ-9', '2-Ⅲ-9', '3-Ⅲ-4', '英|Ad-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5a-u3'] },
           {
             id: 'eng5a-r2', no: 6, title: 'Review 2',
             std: ['1-Ⅲ-1', '英|Ab-Ⅲ-5', '英|Ac-Ⅲ-4'],
@@ -541,11 +541,11 @@ const CURRICULUM = [
                 '<b>怎麼用：</b>開 Unit 3 和 Unit 4 的教具各玩一次，' +
                 '或到<b>練習區</b>選「五年級英語（五上）整冊混合」。'
             }
-          },
+          , pre: ['eng5a-u3', 'eng5a-u4'] },
           {
             id: 'eng5a-u5', no: 7, title: 'Culture & Festivals　Chinese New Year',
             std: ['1-Ⅲ-12', '2-Ⅲ-7', '5-Ⅲ-2'], impl: true, kind: '2d'
-          }
+          , pre: ['eng5a-u3'] }
         ]
       },
       {
@@ -557,15 +557,15 @@ const CURRICULUM = [
           {
             id: 'eng5b-u0', no: 0, title: 'Get Ready　世界地標與數字',
             std: ['2-Ⅲ-2', '英|Ac-Ⅲ-4', '英|Ab-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5a-u0'] },
           {
             id: 'eng5b-u1', no: 1, title: 'Unit 1　A Surprise for Jello',
             std: ['1-Ⅲ-6', '2-Ⅲ-8', '3-Ⅲ-5', '英|Ad-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5b-u0', 'eng5a-u4'] },
           {
             id: 'eng5b-u2', no: 2, title: 'Unit 2　City Adventure',
             std: ['1-Ⅲ-9', '2-Ⅲ-7', '3-Ⅲ-5', '英|Ab-Ⅲ-5'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5b-u1'] },
           {
             id: 'eng5b-r1', no: 3, title: 'Review 1　＋　Culture & Festivals：Earth Day',
             std: ['英|Ab-Ⅲ-5', '英|Ac-Ⅲ-4', '8-Ⅲ-4'],
@@ -583,15 +583,15 @@ const CURRICULUM = [
                 '英文只要說得出 <b>by bike</b>、<b>by bus</b>、<b>on foot</b> 就很好了。' +
                 '這剛好對到課綱 8-Ⅲ-4「能了解外國風土民情」。'
             }
-          },
+          , pre: ['eng5b-u1', 'eng5b-u2'] },
           {
             id: 'eng5b-u3', no: 4, title: 'Unit 3　Clothes Shopping for a Wedding',
             std: ['1-Ⅲ-9', '2-Ⅲ-9', '3-Ⅲ-5', '英|Ad-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5b-u2'] },
           {
             id: 'eng5b-u4', no: 5, title: 'Unit 4　Whose Backpack Is It?',
             std: ['1-Ⅲ-9', '2-Ⅲ-8', '3-Ⅲ-4', '英|Ad-Ⅲ-2'], impl: true, kind: '2d'
-          },
+          , pre: ['eng5b-u3'] },
           {
             id: 'eng5b-r2', no: 6, title: 'Review 2',
             std: ['英|Ab-Ⅲ-5', '英|Ac-Ⅲ-4', '5-Ⅲ-9'],
@@ -605,7 +605,7 @@ const CURRICULUM = [
                 '<b>這學期最容易錯的一件事：</b>pants、shorts、sneakers、socks、keys、glasses ' +
                 '這六個字<b>永遠是複數</b>，要用 are 和 They\'re。複習時特別問這一題。'
             }
-          }
+          , pre: ['eng5b-u3', 'eng5b-u4'] }
         ]
       }
     ]

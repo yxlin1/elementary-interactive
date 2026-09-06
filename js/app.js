@@ -103,6 +103,29 @@
     }));
     inner.appendChild(el('h2', { class: 'title', text: c.title }));
 
+    /* 先備知識：指向站內其他章節，點了直接跳過去複習。
+       這是課程資料，不是小老師的東西，所以沒設定 token 也照樣顯示。 */
+    const pres = (c.pre || []).map(x => CHAPTER_INDEX[x]).filter(Boolean);
+    if (pres.length || c.preNote) {
+      const pl = el('div', { class: 'pre-list' });
+      pl.appendChild(el('span', { class: 'pre-label', text: '先備知識' }));
+      pres.forEach(x => {
+        pl.appendChild(el('a', {
+          class: 'pre-link', href: '#' + x.id,
+          title: x.subject + '　' + x.term + '　第 ' + x.no + ' 單元',
+          text: x.title
+        }));
+      });
+      if (c.preNote) pl.appendChild(el('span', { class: 'pre-note', text: '※ ' + c.preNote }));
+      inner.appendChild(pl);
+    }
+
+    /* 這一章的小老師入口（選用功能，沒設定就不會出現） */
+    if (window.Tutor && typeof Tutor.chapterButton === 'function') {
+      const tb = Tutor.chapterButton();
+      if (tb) inner.appendChild(el('div', { class: 'pre-list' }, [tb]));
+    }
+
     /* 課綱條目 */
     if (c.std && c.std.length) {
       const sl = el('div', { class: 'std-list' });
@@ -502,6 +525,10 @@
 
     contentEl.innerHTML = '';
     contentEl.appendChild(inner);
+    // 小老師是選用功能，js/tutor.js 沒載到也要照常運作
+    if (window.Tutor && typeof Tutor.settingsCard === 'function') {
+      try { inner.appendChild(Tutor.settingsCard()); } catch (e) { /* 忽略 */ }
+    }
     contentEl.scrollTop = 0;
   }
 
