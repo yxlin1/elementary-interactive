@@ -42,13 +42,29 @@ var Tutor = (function () {
     }
   };
 
-  /* 語音辨識固定走 Groq，跟聊天選哪一家無關 */
+  /* ---------------- 語音提問的三條路 ----------------
+     實測（2026-09）：
+     - Groq whisper-large-v3-turbo：最準，而且給一句繁體引導 prompt 就會輸出繁體。
+     - 瀏覽器內建 SpeechRecognition：不用任何 token、不用上傳，講完馬上出字；
+       但 Firefox 沒有，而且 Chrome 會把聲音送到 Google。
+     - MiniMax asr-1.0：可以用，CORS 也開，但**只會輸出簡體**——
+       language=zh-TW、prompt 這些參數都試過，改不掉。所以排最後。 */
   var STT = {
     url: 'https://api.groq.com/openai/v1/audio/transcriptions',
     model: 'whisper-large-v3-turbo',
-    /* whisper 對中文預設輸出簡體，靠這句引導轉成繁體。
-       這裡只能放「描述性」的句子——放範例詞彙反而會把標點吃掉。 */
+    /* 這裡只能放「描述性」的句子——放範例詞彙反而會把標點吃掉 */
     zhPrompt: '以下是臺灣國小學生的提問，請用臺灣繁體中文轉寫。'
+  };
+  var MM_STT = { url: 'https://api.minimax.io/v1/speech_to_text', model: 'asr-1.0' };
+  /* MiniMax 的語音合成。實測四個模型都能用，回應都在 3 秒上下，
+     計費看字元數。中文音色全是「標準普通話」，沒有臺灣腔可選。 */
+  var MM_TTS = {
+    url: 'https://api.minimax.io/v1/t2a_v2',
+    listUrl: 'https://api.minimax.io/v1/get_voice',
+    model: 'speech-2.5-hd-preview',
+    models: ['speech-2.5-hd-preview', 'speech-2.5-turbo-preview', 'speech-02-hd', 'speech-02-turbo'],
+    zh: 'Chinese (Mandarin)_Warm_Girl',
+    en: 'English_CalmWoman'
   };
 
   /* ---------------- 設定的存取 ----------------
@@ -65,10 +81,25 @@ var Tutor = (function () {
     /* 家裡自己的電腦、平板才是主要情境，預設就記住，
        不然每次關掉瀏覽器都要家長重貼一次 token。公用電腦再自己取消勾選。 */
     if (typeof c.remember !== 'boolean') c.remember = true;
-    if (typeof c.stt !== 'boolean') c.stt = true;
-    if (typeof c.tts !== 'boolean') c.tts = true;
+
+    /* 問答、語音提問、朗讀三件事各自設定，互不牽連。
+       舊版存的是 stt:true/false、tts:true/false，這裡順手升級掉。 */
+    if (typeof c.stt === 'boolean') c.stt = c.stt ? 'auto' : 'off';
+    if (STT_MODES.indexOf(c.stt) < 0) c.stt = 'auto';
+
+    if (typeof c.tts === 'boolean') c.tts = { engine: c.tts ? 'browser' : 'off' };
+    if (!c.tts || typeof c.tts !== 'object') c.tts = {};
+    if (TTS_MODES.indexOf(c.tts.engine) < 0) c.tts.engine = 'browser';
+    if (typeof c.tts.voice !== 'string') c.tts.voice = '';
+    if (typeof c.tts.enVoice !== 'string') c.tts.enVoice = '';
+    if (typeof c.tts.auto !== 'boolean') c.tts.auto = false;
+    if (!c.tts.model) c.tts.model = MM_TTS.model;
+    var sp = parseFloat(c.tts.speed);
+    c.tts.speed = (isFinite(sp) && sp >= 0.5 && sp <= 2) ? sp : 1;
     return c;
   }
+  var STT_MODES = ['auto', 'groq', 'web', 'minimax', 'off'];
+  var TTS_MODES = ['browser', 'minimax', 'off'];
   function saveCfg(cfg) {
     var s = JSON.stringify(cfg);
     try {
@@ -351,7 +382,58 @@ var Tutor = (function () {
      各家語言代碼和結果格式又不一樣，而 Groq 這條路三個平台一致。 */
   var CAN_REC = (typeof navigator !== 'undefined' && navigator.mediaDevices &&
                  navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
-  function sttReady() { return CAN_REC && !!groqKey() && loadCfg().stt; }
+  var HAS_SR = (typeof window !== 'undefined') &&
+               !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  /* 三條路的優先順序：Groq 最準且各家瀏覽器都能用 → 瀏覽器內建不用 token
+     也不用上傳 → MiniMax 墊底（只吐簡體，要再過一次 OpenCC）。 */
+  function sttEngine() {
+    var c = loadCfg();
+    if (c.stt === 'off') return null;
+    if (c.stt === 'groq') return (CAN_REC && c.keys.groq) ? 'groq' : null;
+    if (c.stt === 'web') return HAS_SR ? 'web' : null;
+    if (c.stt === 'minimax') return (CAN_REC && c.keys.minimax) ? 'minimax' : null;
+    // auto：Groq 最準 → 瀏覽器內建不用 token → MiniMax 墊底（只吐簡體）
+    if (CAN_REC && c.keys.groq) return 'groq';
+    if (HAS_SR) return 'web';
+    if (CAN_REC && c.keys.minimax) return 'minimax';
+    return null;
+  }
+  function sttReady() { return !!sttEngine(); }
+  /* 沒有 🎤 的時候要講得出原因，不要只是默默不顯示 */
+  function sttWhy() {
+    var c = loadCfg();
+    if (c.stt === 'off') return '語音提問在設定裡被關掉了。';
+    if (c.stt === 'groq' && !c.keys.groq) return '語音提問指定用 Groq，但還沒有 Groq token。';
+    if (c.stt === 'minimax' && !c.keys.minimax) return '語音提問指定用 MiniMax，但還沒有 MiniMax token。';
+    if (c.stt === 'web' && !HAS_SR) return '這個瀏覽器沒有內建語音辨識（Firefox 就沒有）。';
+    if (!CAN_REC && !HAS_SR) return '這台裝置的瀏覽器不支援錄音，所以沒有 🎤。';
+    if (!c.keys.groq && !c.keys.minimax && !HAS_SR) return '還沒有任何可用的語音辨識。';
+    return '';
+  }
+
+  /* ---------------- OpenCC：簡體轉臺灣正體 ----------------
+     只有 MiniMax 那條路用得到，而 vendor/opencc-cn2t.js 有 1MB，
+     所以不寫進 index.html，真的要用的時候才插一個 <script> 進去。
+     file:// 也吃得下這種動態載入（被擋的是 fetch，不是 script src）。 */
+  var occ = null, occLoading = null;
+  function toTW(text) {
+    if (!text) return Promise.resolve(text);
+    if (occ) return Promise.resolve(occ(text));
+    if (!occLoading) {
+      occLoading = new Promise(function (done) {
+        var sc = document.createElement('script');
+        sc.src = 'vendor/opencc-cn2t.js';
+        sc.onload = function () {
+          try { occ = window.OpenCC.Converter({ from: 'cn', to: 'twp' }); } catch (e) { occ = null; }
+          done();
+        };
+        sc.onerror = function () { done(); };     // 載不到就原樣顯示，不要整個壞掉
+        document.head.appendChild(sc);
+      });
+    }
+    return occLoading.then(function () { return occ ? occ(text) : text; });
+  }
 
   function recorder(onStop, onError) {
     var chunks = [], rec = null, stream = null, stopTimer = null;
@@ -395,20 +477,28 @@ var Tutor = (function () {
   }
 
   function transcribe(blob, type) {
-    var key = groqKey();
-    if (!key) return Promise.reject(new Error('語音輸入需要 Groq 的 token。'));
+    var cfg = loadCfg();
+    var engine = sttEngine();
+    var mm = engine === 'minimax';
+    var key = mm ? cfg.keys.minimax : cfg.keys.groq;
+    if (!key) return Promise.reject(new Error('語音提問需要一組 token。'));
+
     var ext = type.indexOf('mp4') >= 0 ? 'm4a' : type.indexOf('ogg') >= 0 ? 'ogg' : 'webm';
     var lang = currentSubject() === '英語' ? 'en' : 'zh';
     var fd = new FormData();
     fd.append('file', blob, 'speech.' + ext);
-    fd.append('model', STT.model);
-    fd.append('language', lang);
-    fd.append('response_format', 'json');
-    if (lang === 'zh') fd.append('prompt', STT.zhPrompt);
+    if (mm) {
+      fd.append('model', MM_STT.model);
+    } else {
+      fd.append('model', STT.model);
+      fd.append('language', lang);
+      fd.append('response_format', 'json');
+      if (lang === 'zh') fd.append('prompt', STT.zhPrompt);
+    }
 
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, 45000);
-    return fetch(STT.url, {
+    return fetch(mm ? MM_STT.url : STT.url, {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Authorization': 'Bearer ' + key },   // 不要自己設 Content-Type，boundary 要瀏覽器產生
       body: fd
@@ -417,13 +507,45 @@ var Tutor = (function () {
       return res.json();
     }).then(function (j) {
       clearTimeout(timer);
-      return String((j && j.text) || '').trim();
+      checkBaseResp(j);
+      var text = String((j && j.text) || '').trim();
+      // MiniMax 一律回簡體，過一次 OpenCC 再給小朋友看
+      return (mm && lang === 'zh') ? toTW(text) : text;
     }, function (err) {
       clearTimeout(timer);
       if (err.name === 'AbortError') throw new Error('語音辨識等太久了。');
       if (err instanceof TypeError) throw new Error('連不到語音辨識服務。');
       throw err;
     });
+  }
+
+  /* 瀏覽器內建的語音辨識：不用 token、不用上傳，講完馬上出字。
+     Firefox 沒有這個 API；Chrome 會把聲音送到 Google，Safari 送到 Apple。 */
+  function webRecognizer(onText, onError, onEnd) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var r = new SR();
+    r.lang = currentSubject() === '英語' ? 'en-US' : 'zh-TW';
+    r.interimResults = true;
+    r.continuous = false;
+    r.maxAlternatives = 1;
+    var finalText = '';
+    r.onresult = function (e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t; else interim += t;
+      }
+      onText(finalText + interim, finalText && !interim);
+    };
+    r.onerror = function (e) {
+      var m = '語音辨識出錯了。';
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') m = '麥克風被擋住了，請在網址列的權限設定裡允許。';
+      else if (e.error === 'no-speech') m = '沒聽到聲音，再說一次看看。';
+      else if (e.error === 'network') m = '連不到語音辨識服務。';
+      onError(new Error(m));
+    };
+    r.onend = function () { onEnd(finalText.trim()); };
+    return r;
   }
 
   /* ---------------- 唸出來（瀏覽器內建） ----------------
@@ -449,18 +571,142 @@ var Tutor = (function () {
     }
     return null;
   }
-  function canSpeak(lang) { return CAN_SPEAK && (voicesReady ? !!pickVoice(lang) : true); }
-  function speak(text, lang) {
-    if (!CAN_SPEAK) return;
-    try {
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      var v = pickVoice(lang);
-      if (v) { u.voice = v; u.lang = v.lang; }
-      else u.lang = lang === 'en' ? 'en-US' : 'zh-TW';
-      u.rate = lang === 'en' ? 0.85 : 0.95;
-      window.speechSynthesis.speak(u);
-    } catch (e) { /* 唸不出來就算了，不要打斷畫面 */ }
+  /* 家長在設定裡指定的瀏覽器音色（存 voiceURI，換裝置找不到就退回自動挑） */
+  function chosenVoice(lang) {
+    var want = loadCfg().tts[lang === 'en' ? 'enVoice' : 'voice'];
+    if (want && CAN_SPEAK) {
+      var vs = window.speechSynthesis.getVoices() || [];
+      for (var i = 0; i < vs.length; i++) if (vs[i].voiceURI === want) return vs[i];
+    }
+    return pickVoice(lang);
+  }
+  function browserVoices(lang) {
+    if (!CAN_SPEAK) return [];
+    var pre = lang === 'en' ? 'en' : 'zh';
+    return (window.speechSynthesis.getVoices() || []).filter(function (v) {
+      return String(v.lang || '').toLowerCase().replace(/_/g, '-').indexOf(pre) === 0;
+    });
+  }
+
+  function ttsEngine() {
+    var c = loadCfg();
+    if (c.tts.engine === 'off') return null;
+    if (c.tts.engine === 'minimax') return c.keys.minimax ? 'minimax' : null;
+    return CAN_SPEAK ? 'browser' : null;
+  }
+  function canSpeak(lang) {
+    var e = ttsEngine();
+    if (e === 'minimax') return true;                 // 雲端合成不挑裝置有沒有語音
+    if (e !== 'browser') return false;
+    return voicesReady ? !!chosenVoice(lang) : true;  // 語音清單還沒載好就先讓按鈕出現
+  }
+  function ttsWhy() {
+    var c = loadCfg();
+    if (c.tts.engine === 'off') return '朗讀在設定裡被關掉了。';
+    if (c.tts.engine === 'minimax' && !c.keys.minimax) return '朗讀指定用 MiniMax，但還沒有 MiniMax token。';
+    if (c.tts.engine === 'browser' && !CAN_SPEAK) return '這台裝置的瀏覽器沒有內建語音合成。';
+    return '';
+  }
+
+  /* speak() 兩條路都走得通，回傳 Promise 讓「試聽」可以顯示錯誤。 */
+  var mmAudio = null;
+  function speak(text, lang, onstart) {
+    var e = ttsEngine();
+    if (!e || !text) return Promise.resolve();
+    if (e === 'minimax') return speakMiniMax(text, lang, onstart);
+    return new Promise(function (done) {
+      try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        var v = chosenVoice(lang);
+        if (v) { u.voice = v; u.lang = v.lang; }
+        else u.lang = lang === 'en' ? 'en-US' : 'zh-TW';
+        u.rate = (lang === 'en' ? 0.85 : 0.95) * loadCfg().tts.speed;
+        u.onend = function () { done(); };
+        u.onerror = function () { done(); };
+        if (onstart) onstart();
+        window.speechSynthesis.speak(u);
+      } catch (err) { done(); }   // 唸不出來就算了，不要打斷畫面
+    });
+  }
+
+  function stopSpeak() {
+    if (CAN_SPEAK) { try { window.speechSynthesis.cancel(); } catch (e) { /* 忽略 */ } }
+    if (mmAudio) {
+      var a = mmAudio; mmAudio = null;
+      try { a.pause(); } catch (e) { /* 忽略 */ }
+      // pause() 不會觸發 onended，手動收尾，不然等它的人會一直等下去
+      var f = a.onended; a.onended = null; a.onerror = null;
+      if (f) f();
+    }
+  }
+
+  /* MiniMax 回的是十六進位字串包住的 mp3，要自己轉成 Blob 再播。
+     播放需要使用者手勢，而 🔊 本身就是點出來的，所以不會被自動播放政策擋。 */
+  function speakMiniMax(text, lang, onstart) {
+    var cfg = loadCfg();
+    var key = cfg.keys.minimax;
+    if (!key) return Promise.reject(new Error('朗讀需要 MiniMax token。'));
+    stopSpeak();
+    var vid = cfg.tts[lang === 'en' ? 'enVoice' : 'voice'] || (lang === 'en' ? MM_TTS.en : MM_TTS.zh);
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 45000);
+    return fetch(MM_TTS.url, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: cfg.tts.model || MM_TTS.model,
+        text: String(text).slice(0, 1500),
+        stream: false,
+        voice_setting: { voice_id: vid, speed: cfg.tts.speed },
+        audio_setting: { format: 'mp3', sample_rate: 32000 }
+      })
+    }).then(function (res) {
+      if (!res.ok) return res.text().then(function (t) { throw new Error(explainHttp(res.status, t)); });
+      return res.json();
+    }).then(function (j) {
+      clearTimeout(timer);
+      checkBaseResp(j);
+      var hex = j && j.data && j.data.audio;
+      if (!hex) throw new Error('沒有拿到語音資料。');
+      var bytes = new Uint8Array(hex.length / 2);
+      for (var i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+      return new Promise(function (done, fail) {
+        mmAudio = new Audio(url);
+        mmAudio.onended = function () { URL.revokeObjectURL(url); done(); };
+        mmAudio.onerror = function () { URL.revokeObjectURL(url); fail(new Error('這段語音播不出來。')); };
+        if (onstart) onstart();
+        mmAudio.play().catch(function () { URL.revokeObjectURL(url); fail(new Error('瀏覽器擋住了自動播放。')); });
+      });
+    }, function (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') throw new Error('語音合成等太久了。');
+      if (err instanceof TypeError) throw new Error('連不到語音合成服務。');
+      throw err;
+    });
+  }
+
+  /* MiniMax 的音色清單直接跟 API 要，才不會寫死在程式裡過期。抓一次就記住。 */
+  var mmVoices = null, mmVoicesLoading = null;
+  function loadMMVoices() {
+    if (mmVoices) return Promise.resolve(mmVoices);
+    if (mmVoicesLoading) return mmVoicesLoading;
+    var key = loadCfg().keys.minimax;
+    if (!key) return Promise.reject(new Error('需要 MiniMax token 才能取得音色清單。'));
+    mmVoicesLoading = fetch(MM_TTS.listUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ voice_type: 'system' })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      checkBaseResp(j);
+      mmVoices = (j.system_voice || []).map(function (v) {
+        return { id: v.voice_id, name: v.voice_name || v.voice_id,
+                 desc: (v.description && v.description[0]) || '' };
+      });
+      return mmVoices;
+    }).catch(function (e) { mmVoicesLoading = null; throw e; });
+    return mmVoicesLoading;
   }
 
   /* ---------------- 對話視窗 ----------------
@@ -506,6 +752,9 @@ var Tutor = (function () {
     if (sttReady()) {
       micBtn = Kit.button('🎤 用說的', function () { toggleMic(micBtn, input, micNote); }, 'small');
       micBtn.title = '按一下開始說話，說完再按一下';
+    } else {
+      // 按鈕沒出現一定要講原因，不然使用者只會覺得「功能不見了」
+      say(micNote, '（' + (sttWhy() || '這台裝置沒有可用的語音辨識。') + '）');
     }
     var sendBtn = Kit.button('送出', function () { send(input, body); }, 'primary');
 
@@ -514,9 +763,24 @@ var Tutor = (function () {
     });
 
     var row = el('div', { class: 'tutor-row' }, micBtn ? [input, micBtn, sendBtn] : [input, sendBtn]);
+
+    /* 勾起來就自動唸出回覆。狀態存進設定，下次打開還在。
+       瀏覽器的自動播放政策要有使用者手勢——按「送出」就是手勢，所以這樣是可以的。 */
+    var autoBox = el('input', { type: 'checkbox' });
+    autoBox.checked = !!loadCfg().tts.auto;
+    autoBox.addEventListener('change', function () {
+      var c = loadCfg(); c.tts.auto = autoBox.checked; saveCfg(c);
+      if (!autoBox.checked) stopSpeak();
+    });
+    var opts = el('div', { class: 'tutor-opts' }, [
+      el('label', {}, [autoBox, el('span', { text: ' 🔊 自動唸出回覆' })])
+    ]);
+    if (!canSpeak('zh') && !canSpeak('en')) opts.hidden = true;
+
     panel.appendChild(head);
     panel.appendChild(body);
     panel.appendChild(micNote);
+    panel.appendChild(opts);
     panel.appendChild(row);
     panel.appendChild(el('p', { class: 'tutor-foot', text: '小老師也會說錯。答案請以課本和老師為準；不要輸入姓名、學校、電話。' }));
     document.body.appendChild(panel);
@@ -530,7 +794,7 @@ var Tutor = (function () {
 
   function closeChat() {
     if (activeCtrl) { try { activeCtrl.abort(); } catch (e) { /* 忽略 */ } activeCtrl = null; }
-    if (CAN_SPEAK) { try { window.speechSynthesis.cancel(); } catch (e) { /* 忽略 */ } }
+    stopSpeak();
     if (panel) panel.classList.remove('on');
   }
 
@@ -608,10 +872,24 @@ var Tutor = (function () {
         if (chars > 2400) { history = history.slice(h + 1); break; }
       }
       var lang = /[a-zA-Z]/.test(clean) && !/[一-鿿]/.test(clean) ? 'en' : 'zh';
-      if (loadCfg().tts && canSpeak(lang)) {
-        var b = Kit.button('🔊', function () { speak(clean, lang); }, 'small');
+      if (canSpeak(lang)) {
+        /* MiniMax 那條路要連網合成（約 3 秒），按鈕上要看得出正在忙 */
+        var playing = false;
+        var b = Kit.button('🔊', function () { play(); }, 'small');
         b.className += ' tutor-say';
         span.parentNode.appendChild(b);
+        function reset(msg) {
+          playing = false; b.disabled = false; b.textContent = '🔊';
+          if (msg) b.title = msg;
+        }
+        function play() {
+          if (playing) { stopSpeak(); return; }        // 播放中再按一次＝停下來
+          b.disabled = true; b.textContent = '⏳';     // MiniMax 要連網合成，約 3 秒
+          speak(clean, lang, function () {
+            playing = true; b.disabled = false; b.textContent = '⏹';
+          }).then(function () { reset(); }, function (e) { reset(e.message); });
+        }
+        if (loadCfg().tts.auto) play();
       }
       body.scrollTop = body.scrollHeight;
     }).catch(function (e) {
@@ -635,6 +913,7 @@ var Tutor = (function () {
       rec.stop();
       return;
     }
+    if (sttEngine() === 'web') { webMic(btn, input, note); return; }
     btn.textContent = '⏹ 停止';
     btn.className += ' tutor-rec';
     say(note, '🔴 錄音中…說完請按「停止」（最長 30 秒）');
@@ -661,6 +940,28 @@ var Tutor = (function () {
     });
     rec.start();
   }
+  /* 瀏覽器內建那條路：邊講邊出字，所以直接把逐字稿寫進輸入框。
+     停下來的判斷交給瀏覽器（不講話就自己結束），也可以按「停止」提早收。 */
+  function webMic(btn, input, note) {
+    var base = input.value ? input.value + ' ' : '';
+    var r;
+    try { r = webRecognizer(onText, onErr, onEnd); } catch (e) { say(note, '⚠ 這台裝置叫不出語音辨識。'); return; }
+    var failed = false;
+    function onText(t) { input.value = base + t; }
+    function onErr(e) { failed = true; say(note, '⚠ ' + e.message); }
+    function onEnd(finalText) {
+      rec = null; resetMic(btn);
+      if (failed) return;
+      if (finalText) { input.value = base + finalText; input.focus(); say(note, '聽到的是這樣，可以改，然後按「送出」。'); }
+      else { input.value = base; say(note, '沒聽清楚，再說一次看看。'); }
+    }
+    rec = { stop: function () { try { r.stop(); } catch (e) { /* 忽略 */ } } };
+    btn.textContent = '⏹ 停止';
+    btn.className += ' tutor-rec';
+    say(note, '🔴 聽你說…講完會自己停，也可以按「停止」。');
+    try { r.start(); } catch (e) { rec = null; resetMic(btn); say(note, '⚠ 麥克風叫不起來。'); }
+  }
+
   function resetMic(btn) {
     btn.textContent = '🎤 用說的';
     btn.disabled = false;
@@ -731,7 +1032,7 @@ var Tutor = (function () {
     card.appendChild(el('p', {
       class: 'hint',
       html: '這是<b>選用</b>功能，預設關閉。不填就<b>完全不會連網</b>，整個網站照常離線使用。<br>' +
-            '要用的話請<b>家長</b>自己申請一組 API token 貼在下面。token 只存在這台裝置的瀏覽器，' +
+            '要用的話請<b>家長</b>自己申請 API token 貼在下面。token 只存在這台裝置的瀏覽器，' +
             '不會傳給本站作者（本站是純靜態網頁，沒有伺服器）。'
     }));
     card.appendChild(el('p', {
@@ -743,40 +1044,235 @@ var Tutor = (function () {
             'Google Gemini 沒有列在這裡：它的條款明文禁止用在「directed towards or is likely to be accessed by individuals under the age of 18」的服務，這個網站正好是。'
     }));
 
-    /* 用自己的 class：站上的 .ctl 是 display:flex 的控制列，套在 input 上會縮成一小截 */
+    /* ---------- 金鑰：兩家都列出來 ----------
+       問答、語音提問、朗讀可以分別用不同家，所以兩個欄位一起顯示，
+       不再跟著問答的下拉選單變。 */
+    var groqIn = el('input', {
+      type: 'password', class: 'tutor-field', autocomplete: 'off', spellcheck: 'false',
+      placeholder: 'Groq token（console.groq.com，gsk_…）', value: cfg.keys.groq || ''
+    });
+    var mmIn = el('input', {
+      type: 'password', class: 'tutor-field', autocomplete: 'off', spellcheck: 'false',
+      placeholder: 'MiniMax token（platform.minimax.io，sk-…）', value: cfg.keys.minimax || ''
+    });
+    card.appendChild(el('h4', { class: 'tutor-sec', text: '① API token（兩家可以只填一家，也可以都填）' }));
+    card.appendChild(groqIn);
+    card.appendChild(mmIn);
+
+    /* ---------- 問答 ---------- */
+    card.appendChild(el('h4', { class: 'tutor-sec', text: '② 問答用哪一家' }));
     var sel = el('select', { class: 'tutor-field' });
     Object.keys(PROVIDERS).forEach(function (id) {
       var o = el('option', { value: id, text: PROVIDERS[id].label });
       if (id === cfg.provider) o.selected = true;
       sel.appendChild(o);
     });
-
-    var keyIn = el('input', {
-      type: 'password', class: 'tutor-field', autocomplete: 'off', spellcheck: 'false',
-      placeholder: '貼上 API token', value: cfg.keys[cfg.provider] || ''
-    });
     var modelIn = el('input', {
       type: 'text', class: 'tutor-field', spellcheck: 'false',
       placeholder: '模型名稱（留空用 ' + PROVIDERS[cfg.provider].model + '）', value: cfg.model || ''
     });
-    var hint = el('p', { class: 'src-note', text: PROVIDERS[cfg.provider].keyHint });
-
     sel.addEventListener('change', function () {
-      var c = loadCfg();
-      hint.textContent = PROVIDERS[sel.value].keyHint;
       modelIn.placeholder = '模型名稱（留空用 ' + PROVIDERS[sel.value].model + '）';
-      keyIn.value = c.keys[sel.value] || '';
-      sttNote();
     });
+    card.appendChild(sel);
+    card.appendChild(modelIn);
 
+    /* ---------- 語音提問 ---------- */
+    card.appendChild(el('h4', { class: 'tutor-sec', text: '③ 語音提問 🎤' }));
+    var sttSel = el('select', { class: 'tutor-field' });
+    [['auto', '自動挑一條能用的（建議）'],
+     ['groq', 'Groq whisper-large-v3-turbo（最準，直接輸出繁體）'],
+     ['web', '瀏覽器內建（不用 token，Firefox 沒有這功能）'],
+     ['minimax', 'MiniMax asr-1.0（只輸出簡體，會用 OpenCC 轉繁體）'],
+     ['off', '關閉']].forEach(function (o) {
+      var op = el('option', { value: o[0], text: o[1] });
+      if (cfg.stt === o[0]) op.selected = true;
+      sttSel.appendChild(op);
+    });
+    var sttHint = el('p', { class: 'src-note' });
+    card.appendChild(sttSel);
+    card.appendChild(sttHint);
+
+    /* ---------- 朗讀 ---------- */
+    card.appendChild(el('h4', { class: 'tutor-sec', text: '④ 朗讀 🔊' }));
+    var ttsSel = el('select', { class: 'tutor-field' });
+    [['browser', '瀏覽器內建（免費、不連網、離線可用）'],
+     ['minimax', 'MiniMax T2A（自然很多，但要連網、依字數計費）'],
+     ['off', '關閉']].forEach(function (o) {
+      var op = el('option', { value: o[0], text: o[1] });
+      if (cfg.tts.engine === o[0]) op.selected = true;
+      ttsSel.appendChild(op);
+    });
+    var zhSel = el('select', { class: 'tutor-field' });
+    var enSel = el('select', { class: 'tutor-field' });
+    var mmModel = el('select', { class: 'tutor-field' });
+    MM_TTS.models.forEach(function (m) {
+      var op = el('option', { value: m, text: '模型：' + m });
+      if (cfg.tts.model === m) op.selected = true;
+      mmModel.appendChild(op);
+    });
+    var speed = Kit.slider('語速', {
+      min: 0.5, max: 1.5, step: 0.05, value: cfg.tts.speed,
+      format: function (v) { return v.toFixed(2) + '×'; }
+    });
+    var autoTts = el('input', { type: 'checkbox' });
+    if (cfg.tts.auto) autoTts.checked = true;
+    var tryBtn = Kit.button('▶ 試聽', function () { preview(); }, 'small');
+    var tryEn = Kit.button('▶ 試聽英文', function () { preview('en'); }, 'small');
+    var ttsHint = el('p', { class: 'src-note' });
+    var ttsRow = el('div', { class: 'pr-actions' }, [tryBtn, tryEn]);
+    card.appendChild(ttsSel);
+    card.appendChild(zhSel);
+    card.appendChild(enSel);
+    card.appendChild(mmModel);
+    card.appendChild(speed.wrap);
+    card.appendChild(el('label', { class: 'ctl' }, [autoTts,
+      el('span', { text: ' 小老師回答完就自動唸出來（對話視窗裡也有同一個開關）' })]));
+    card.appendChild(ttsRow);
+    card.appendChild(ttsHint);
+
+    /* ---------- 記住與狀態 ---------- */
     var remember = el('input', { type: 'checkbox' });
     if (cfg.remember) remember.checked = true;
-    var sttBox = el('input', { type: 'checkbox' });
-    if (cfg.stt) sttBox.checked = true;
-    var ttsBox = el('input', { type: 'checkbox' });
-    if (cfg.tts) ttsBox.checked = true;
-
     var where = el('p', { class: 'src-note' });
+    var status = el('p', { class: 'pr-fb', 'aria-live': 'polite' });
+
+    card.appendChild(el('h4', { class: 'tutor-sec', text: '⑤ 儲存' }));
+    card.appendChild(el('label', { class: 'ctl' }, [remember, el('span', {
+      html: ' <b>把 token 記在這台裝置</b>（存進瀏覽器的 <code>localStorage</code>，下次打開不用重貼）'
+    })]));
+    card.appendChild(where);
+
+    var save = Kit.button('儲存並測試問答', function () { doSave(true); }, 'primary');
+    var clear = Kit.button('全部清除', function () {
+      clearCfg();
+      groqIn.value = ''; mmIn.value = '';
+      status.className = 'pr-fb';
+      status.textContent = '已清除，小老師關閉，網站回到完全離線。';
+      if (panel) { panel.remove(); panel = null; history = null; }
+      mountFab(); refresh();
+    });
+    card.appendChild(el('div', { class: 'pr-actions' }, [save, clear]));
+    card.appendChild(status);
+
+    /* ---------- 這張卡自己的邏輯 ---------- */
+    function collect() {
+      var c = loadCfg();
+      c.keys = c.keys || {};
+      if (groqIn.value.trim()) c.keys.groq = groqIn.value.trim(); else delete c.keys.groq;
+      if (mmIn.value.trim()) c.keys.minimax = mmIn.value.trim(); else delete c.keys.minimax;
+      c.provider = sel.value;
+      c.model = modelIn.value.trim();
+      c.stt = sttSel.value;
+      c.tts = {
+        engine: ttsSel.value,
+        voice: zhSel.value || '',
+        enVoice: enSel.value || '',
+        model: mmModel.value,
+        speed: parseFloat(speed.input.value),
+        auto: autoTts.checked
+      };
+      c.remember = remember.checked;
+      return c;
+    }
+    function doSave(test) {
+      saveCfg(collect());
+      refresh();
+      if (panel) { panel.remove(); panel = null; history = null; }
+      mountFab();
+      if (!test) return;
+      if (!chatKey()) {
+        status.className = 'pr-fb';
+        status.textContent = '已儲存。問答那一家還沒有 token，所以小老師不會出現。';
+        return;
+      }
+      status.className = 'pr-fb';
+      status.textContent = '測試中…';
+      ask([{ role: 'user', content: '回覆兩個字：可以' }], { timeout: 25000 })
+        .then(function (t) {
+          if (!t) throw new Error('沒有收到回覆內容，token 或模型名稱可能有問題。');
+          status.className = 'pr-fb ok';
+          status.textContent = '✅ 問答可以用了。小老師回：' + t.slice(0, 20);
+        })
+        .catch(function (e) {
+          status.className = 'pr-fb no';
+          status.textContent = '❌ ' + e.message;
+        });
+    }
+    /* 試聽用當下畫面上的設定，不必先按儲存 */
+    function preview(lang) {
+      saveCfg(collect());   // 試聽用當下的設定，不必先按儲存
+      var txt = lang === 'en'
+        ? 'How many apples do you have? I have twelve apples.'
+        : '通分就是把兩個分數的分母變成一樣，這樣才比較容易加減。';
+      ttsHint.textContent = '合成中…';
+      speak(txt, lang || 'zh').then(function () {
+        ttsNote();
+      }, function (e) {
+        ttsHint.textContent = '⚠ ' + e.message;
+      });
+    }
+
+    function fillBrowserVoices() {
+      [['zh', zhSel, cfg.tts.voice], ['en', enSel, cfg.tts.enVoice]].forEach(function (x) {
+        var lang = x[0], node = x[1], cur = x[2];
+        node.innerHTML = '';
+        node.appendChild(el('option', { value: '', text: (lang === 'zh' ? '中文' : '英文') + '音色：自動挑' }));
+        browserVoices(lang).forEach(function (v) {
+          var op = el('option', { value: v.voiceURI, text: (lang === 'zh' ? '中文' : '英文') + '：' + v.name + '（' + v.lang + '）' });
+          if (cur === v.voiceURI) op.selected = true;
+          node.appendChild(op);
+        });
+      });
+    }
+    function fillMMVoices() {
+      [['zh', zhSel, cfg.tts.voice, 'Chinese'], ['en', enSel, cfg.tts.enVoice, 'English']].forEach(function (x) {
+        var node = x[1];
+        node.innerHTML = '';
+        node.appendChild(el('option', { value: '', text: '載入音色清單中…' }));
+        void x;
+      });
+      loadMMVoices().then(function (vs) {
+        [['zh', zhSel, cfg.tts.voice, 'Chinese', MM_TTS.zh],
+         ['en', enSel, cfg.tts.enVoice, 'English', MM_TTS.en]].forEach(function (x) {
+          var node = x[1], cur = x[2], pre = x[3], dflt = x[4];
+          node.innerHTML = '';
+          node.appendChild(el('option', { value: '', text: (pre === 'Chinese' ? '中文' : '英文') + '音色：預設（' + dflt + '）' }));
+          vs.filter(function (v) { return v.id.indexOf(pre) === 0; }).forEach(function (v) {
+            var op = el('option', { value: v.id, text: (pre === 'Chinese' ? '中文' : '英文') + '：' + v.name + (v.desc ? '　' + v.desc.slice(0, 40) : '') });
+            if (cur === v.id) op.selected = true;
+            node.appendChild(op);
+          });
+        });
+        ttsNote();
+      }, function (e) {
+        zhSel.innerHTML = ''; enSel.innerHTML = '';
+        zhSel.appendChild(el('option', { value: '', text: '拿不到音色清單：' + e.message }));
+        enSel.appendChild(el('option', { value: '', text: '（同上）' }));
+      });
+    }
+
+    function sttNote() {
+      var e = sttEngine();
+      sttHint.textContent = '目前實際會用：' + (
+        e === 'groq' ? 'Groq Whisper（繁體）。' :
+        e === 'web' ? '瀏覽器內建（不用 token；聲音會送到 Chrome→Google／Safari→Apple）。' :
+        e === 'minimax' ? 'MiniMax asr-1.0 ＋ OpenCC 轉臺灣正體。' :
+        '沒有可用的——' + (sttWhy() || '缺 token') + ' 🎤 不會出現。'
+      );
+    }
+    function ttsNote() {
+      var e = ttsEngine();
+      var t = '目前實際會用：' + (
+        e === 'minimax' ? 'MiniMax T2A（連網合成，約 3 秒；中文音色都是標準普通話，沒有臺灣腔可選）。' :
+        e === 'browser' ? '瀏覽器內建（免費、離線）。' :
+        '沒有可用的——' + (ttsWhy() || '未知') + ' 🔊 不會出現。'
+      );
+      if (e === 'browser' && !browserVoices('zh').length) {
+        t += '　⚠ 這台裝置沒有裝中文語音，中文可能唸不出來（Windows 要另外裝語言包，Edge 內建線上語音）。';
+      }
+      ttsHint.textContent = t;
+    }
     function whereNote() {
       var inLocal = false, inSession = false;
       try { inLocal = !!localStorage.getItem(K); inSession = !!sessionStorage.getItem(K); } catch (e) { /* 忽略 */ }
@@ -786,81 +1282,45 @@ var Tutor = (function () {
           ? '目前狀態：token 只存在這次瀏覽階段（sessionStorage），關掉瀏覽器就會消失。'
           : '目前狀態：這台裝置還沒有存任何 token。';
     }
-
-    var sttHint = el('p', { class: 'src-note' });
-    function sttNote() {
-      var t = '語音輸入固定走 Groq 的 whisper-large-v3-turbo，' +
-              '所以就算聊天選 MiniMax，也要有一把 Groq 的 token 才會出現 🎤。';
-      if (!CAN_REC) t += '（這台裝置的瀏覽器不支援錄音，🎤 不會出現。）';
-      else if (!loadCfg().keys.groq) t += '目前還沒有 Groq token。';
-      sttHint.textContent = t;
+    /* 換引擎就換一整組音色選單，並把用不到的欄位收起來 */
+    function refresh() {
+      var mm = ttsSel.value === 'minimax';
+      var off = ttsSel.value === 'off';
+      zhSel.hidden = off; enSel.hidden = off;
+      mmModel.hidden = !mm;
+      speed.wrap.hidden = off;
+      ttsRow.hidden = off;
+      autoTts.parentNode.hidden = off;
+      if (off) { ttsNote(); whereNote(); sttNote(); return; }
+      if (mm) fillMMVoices(); else fillBrowserVoices();
+      sttNote(); ttsNote(); whereNote();
     }
-    sttNote();
-    whereNote();
-
-    var status = el('p', { class: 'pr-fb', 'aria-live': 'polite' });
-
-    var save = Kit.button('儲存並測試', function () {
-      var c = loadCfg();
-      var v = keyIn.value.trim();
-      c.provider = sel.value;
-      c.model = modelIn.value.trim();
-      c.remember = remember.checked;
-      c.stt = sttBox.checked;
-      c.tts = ttsBox.checked;
-      if (v) c.keys[c.provider] = v; else delete c.keys[c.provider];
-      saveCfg(c);
-      sttNote();
-      whereNote();
-      /* 供應商、🎤、朗讀的開關都會影響對話視窗長什麼樣，
-         設定一改就把舊的丟掉重建，不要留半舊半新的介面 */
-      if (panel) { panel.remove(); panel = null; history = null; }
-      if (!v) {
-        status.className = 'pr-fb';
-        status.textContent = '已清除這一家的 token。';
-        mountFab();
-        return;
-      }
-      status.className = 'pr-fb';
-      status.textContent = '測試中…';
-      ask([{ role: 'user', content: '回覆兩個字：可以' }], { timeout: 25000 })
-        .then(function (t) {
-          // 有些服務失敗時會回一個「格式正確但沒有內容」的東西，那不算成功
-          if (!t) throw new Error('沒有收到回覆內容，token 或模型名稱可能有問題。');
-          status.className = 'pr-fb ok';
-          status.textContent = '✅ 可以用了。小老師回：' + (t || '').slice(0, 20);
-          mountFab();
-        })
-        .catch(function (e) {
-          status.className = 'pr-fb no';
-          status.textContent = '❌ ' + e.message;
-        });
-    }, 'primary');
-
-    var clear = Kit.button('全部清除', function () {
-      clearCfg();
-      whereNote();
-      keyIn.value = '';
-      status.className = 'pr-fb';
-      status.textContent = '已清除，小老師關閉，網站回到完全離線。';
-      if (panel) { panel.remove(); panel = null; }
-      mountFab();
-      sttNote();
+    sttSel.addEventListener('change', function () { saveCfg(collect()); sttNote(); });
+    /* 這幾個沒有專屬的儲存按鈕（「儲存並測試問答」名字上只管問答），
+       所以一改就存，不然家長在這裡勾了自動朗讀，對話視窗那邊卻沒勾。 */
+    [zhSel, enSel, mmModel, autoTts, speed.input].forEach(function (n) {
+      n.addEventListener('change', function () { saveCfg(collect()); });
     });
-
-    card.appendChild(sel);
-    card.appendChild(keyIn);
-    card.appendChild(modelIn);
-    card.appendChild(hint);
-    card.appendChild(el('label', { class: 'ctl' }, [remember, el('span', {
-      html: ' <b>把 token 記在這台裝置</b>（存進瀏覽器的 <code>localStorage</code>，下次打開不用重貼）'
-    })]));
-    card.appendChild(where);
-    card.appendChild(el('label', { class: 'ctl' }, [sttBox, el('span', { text: ' 開啟語音輸入 🎤' })]));
-    card.appendChild(el('label', { class: 'ctl' }, [ttsBox, el('span', { text: ' 開啟朗讀 🔊（用瀏覽器內建語音，不連網）' })]));
-    card.appendChild(sttHint);
-    card.appendChild(el('div', { class: 'pr-actions' }, [save, clear]));
-    card.appendChild(status);
+    ttsSel.addEventListener('change', function () {
+      /* 一定要先清空音色選單再 collect()：不然瀏覽器的 voiceURI 會被存成
+         MiniMax 的 voice_id，之後按 🔊 會被對方退回。清空後 .value 是 ''，
+         等於「用預設音色」，refresh() 再依新引擎重填。 */
+      zhSel.innerHTML = ''; enSel.innerHTML = '';
+      cfg = loadCfg();
+      saveCfg(collect());
+      refresh();
+    });
+    groqIn.addEventListener('change', function () { saveCfg(collect()); sttNote(); ttsNote(); whereNote(); });
+    mmIn.addEventListener('change', function () { saveCfg(collect()); sttNote(); ttsNote(); whereNote(); });
+    /* Windows 的 Chrome 要等 voiceschanged 才拿得到語音清單 */
+    if (CAN_SPEAK) {
+      try {
+        window.speechSynthesis.addEventListener('voiceschanged', function () {
+          if (ttsSel.value === 'browser') { fillBrowserVoices(); ttsNote(); }
+        });
+      } catch (e) { /* 忽略 */ }
+    }
+    refresh();
     return card;
   }
 

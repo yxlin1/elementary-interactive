@@ -2,7 +2,7 @@
 
 ### 🔗 線上版：https://yxlin1.github.io/elementary-interactive/
 
-目前版本 **v0.7.1**（側欄左上角會顯示；版本號在 [`js/version.js`](js/version.js)）。
+目前版本 **v0.7.3**（側欄左上角會顯示；版本號在 [`js/version.js`](js/version.js)）。
 
 給家長在家陪讀用。手機、平板、電腦都可以直接開。
 
@@ -229,11 +229,47 @@ PDF 表頭載明教材版本，單元名稱與各單元的「活動」也逐週�
 不會傳給任何第三方，也不會傳給本站作者。預設只寫 `sessionStorage`（關掉瀏覽器就沒了），
 勾「在這台裝置記住」才會寫 `localStorage`。
 
-| 用途 | 服務 | 預設模型 |
+**問答、語音提問、朗讀三件事各自設定，互不牽連**——兩家的 token 可以同時填，
+例如「MiniMax 負責問答、Groq 負責聽寫、瀏覽器負責朗讀」。
+
+| 用途 | 可選 | 預設 |
 |---|---|---|
-| 問答 | Groq 或 MiniMax 擇一 | `qwen/qwen3.8-27b`／`MiniMax-M3` |
-| 語音提問 🎤 | 固定走 Groq | `whisper-large-v3-turbo` |
-| 朗讀 🔊 | 瀏覽器內建 `speechSynthesis` | 不連網、不需要 token |
+| 問答 | Groq／MiniMax | `qwen/qwen3.8-27b`／`MiniMax-M3` |
+| 語音提問 🎤 | 自動／Groq Whisper／瀏覽器內建／MiniMax `asr-1.0`／關閉 | 自動 |
+| 朗讀 🔊 | 瀏覽器內建／MiniMax T2A／關閉 | 瀏覽器內建（免費、離線） |
+
+朗讀選 MiniMax 時，音色清單直接跟 `/v1/get_voice` 要（中文 32 個、英文 45 個，不寫死在程式裡），
+中英文各自選、可調語速、可以按「▶ 試聽」先聽再決定。四個模型
+（`speech-2.5-hd-preview`／`speech-2.5-turbo-preview`／`speech-02-hd`／`speech-02-turbo`）都測過，
+回應都在 3 秒上下，依字元數計費。**MiniMax 的中文音色全是「標準普通話」，沒有臺灣腔可選**——
+要不要接受這個口音，請家長自己試聽決定。
+
+對話視窗底下有「🔊 自動唸出回覆」勾選框，打勾之後小老師一答完就會自己唸；
+合成中按鈕顯示 ⏳，播放中變成 ⏹（再按一下就停）。
+
+### 語音提問走哪一條路
+
+不綁定任何一家。開啟對話時自動挑一條可用的：
+
+1. **有 Groq token** → `whisper-large-v3-turbo`。最準，各家瀏覽器都能用；中文預設會吐簡體，
+   給一句「以下是臺灣國小學生的提問，請用臺灣繁體中文轉寫。」的引導 prompt 就會輸出繁體
+   （放範例詞彙反而會把標點吃掉，只能放描述性的句子）。
+2. **沒有 Groq token** → 瀏覽器內建的 `SpeechRecognition`。不用 token、不用上傳，邊講邊出字。
+   但 Firefox 沒有這個 API，而且聲音會送到瀏覽器廠商（Chrome→Google，Safari→Apple）。
+3. **都沒有** → MiniMax 的 `asr-1.0`（`POST /v1/speech_to_text`，CORS 開放）。
+   它**只會輸出簡體**，`language=zh-TW`、`prompt` 這些參數都試過，改不掉——
+   所以站上接了 **OpenCC**（`vendor/opencc-cn2t.js`，`from: 'cn', to: 'twp'`）轉成臺灣正體才顯示。
+   除了字形，慣用詞也會一起轉：軟件→軟體、打印→列印、鐘表→鐘錶，
+   而且「头发→頭髮 / 发现→發現」這種一對多的歧義也對。
+
+OpenCC 那份字典有 1 MB（其中 STPhrases 就佔 1 MB，正是用來處理上面那種歧義的），
+所以 **`index.html` 不掛它**，`js/tutor.js` 真的走到第 3 條路時才動態插一個 `<script>` 進去
+（`file://` 擋的是 `fetch`，不是 `script src`，所以離線也照樣載得到）。本機實測載入約 50 ms。
+
+三條路都不能用時（語音在設定裡關掉、或瀏覽器兩種 API 都沒有），
+面板上會直接寫出原因，而不是默默不顯示按鈕。
+
+辨識完的字**先填進輸入框讓孩子看到再自己按送出**——聽錯可以改，也不會白吃一次額度。
 
 **為什麼是這兩家**：這個網站要能從 `file://` 和 GitHub Pages 直接呼叫 API，所以供應商必須允許瀏覽器跨來源請求。
 實測（2026-09）NVIDIA NIM 的 CORS 白名單只認 `build.nvidia.com`，第三方網頁一律被擋；
@@ -347,6 +383,11 @@ elementary-interactive/
 │  ├─ curriculum.js        章節樹 + 課綱條目原文
 │  ├─ quiz-bank.js         題庫統計（由 tools/validate-quiz.js --emit 產生，勿手改）
 │  ├─ tutor.js            線上小老師（選用；沒設定 token 就完全不連網）
+│  └─ …
+├─ vendor/
+│  ├─ three.min.js        3D（原本就有）
+│  ├─ opencc-cn2t.js      OpenCC 簡→繁（1MB，只有語音走 MiniMax 時才動態載入）
+│  └─ opencc-LICENSE.txt  MIT AND Apache-2.0
 │  ├─ kit.js               共用工具（章節註冊、練習題引擎、3D／2D 樣板）
 │  └─ app.js               章節樹渲染、路由、頁面組裝
 ├─ tools/
