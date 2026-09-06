@@ -48,9 +48,21 @@ html, body {
   overflow: hidden;
 }
 
-.sb-head { padding: 18px 18px 12px; border-bottom: 1px solid var(--line); }
+.sb-head { position: relative; padding: 18px 56px 12px 18px; border-bottom: 1px solid var(--line); }
+/* 收起側欄（桌機限定；手機走 ☰ 抽屜） */
+.sb-collapse {
+  display: none; position: absolute; top: 16px; right: 12px;
+  width: 34px; height: 34px; border-radius: 9px;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); font-size: 12px; cursor: pointer;
+}
+.sb-collapse:hover { border-color: var(--accent); color: var(--accent); }
 .sb-head h1 { margin: 0 0 4px; font-size: 17px; letter-spacing: .3px; }
 .sb-head .sub { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.sb-head .ver {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  border: 1px solid var(--line); font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
 
 .sb-search {
   margin: 12px 18px;
@@ -295,11 +307,49 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
 
 /* 練習題 */
 .card.quiz { border-left: 3px solid var(--ok); }
-.pr-progress { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+.pr-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 14px; }
+/* 20 題時點縮小，手機一行才放得下 */
+.pr-progress.dense { gap: 4px; }
+.pr-progress.dense .dot { width: 7px; height: 7px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: #2a3a5e; }
 .dot.done { background: var(--ok); }
+.dot.done.wrong { background: var(--no); }
 .dot.now { background: var(--accent); box-shadow: 0 0 0 3px rgba(77,163,255,.2); }
-.pr-count { margin-left: auto; font-size: 13px; color: var(--muted); }
+.pr-count { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; }
+/* 題數選擇 + 本章紀錄，放在進度點上方 */
+.pr-top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  margin-bottom: 12px; font-size: 13px; color: var(--muted);
+}
+.pr-top .seg-btn { min-height: 32px; padding: 4px 11px; font-size: 13px; }
+.pr-best { margin-left: auto; white-space: nowrap; }
+.pr-best b { color: var(--warn); }
+/* 連續答對 */
+.pr-streak {
+  display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 999px;
+  background: rgba(251,191,36,.14); color: var(--warn); font-size: 13.5px; font-weight: 700;
+  animation: pr-pop .35s ease;
+}
+@keyframes pr-pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+/* 回合結束：星等 + 錯題回顧 */
+.pr-stars { font-size: 34px; letter-spacing: 4px; line-height: 1.2; margin: 4px 0 6px; }
+.pr-stars .off { opacity: .22; }
+.pr-review { margin-top: 16px; }
+.pr-review h4 { margin: 0 0 8px; font-size: 15px; color: var(--no); }
+.pr-review-item {
+  padding: 10px 12px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-left: 3px solid var(--no); border-radius: 9px;
+  background: var(--panel-2); color: var(--text); font-size: 14.5px;
+}
+.pr-review-item .ra { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+.pr-review-item .ra b { color: var(--ok); }
+.pr-review-item .pr-steps { margin-top: 8px; }
+.pr-fb s { opacity: .75; }
+.pr-fb .ans b { color: var(--ok); }
+.pr-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.pr-actions .btn { margin-top: 0 !important; }
+.card.quiz { position: relative; overflow: hidden; }
+.pr-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .pr-q { font-size: 17px; margin-bottom: 14px; line-height: 1.8; }
 .pr-a { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .pr-choice {
@@ -327,7 +377,55 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
   color: #cfd9f0; font-size: 14.5px; line-height: 1.9;
 }
 .pr-done { font-size: 19px; }
-.card.quiz .btn.primary { margin-top: 14px; }
+
+/* ---------- 練習區 ----------
+   側欄入口、單元卡片（chips）、專心模式（body.practice-mode 藏掉側欄與 ☰）、放大的題目卡 */
+.sb-practice {
+  display: block; margin: 0 18px 10px; padding: 10px 12px; width: calc(100% - 36px);
+  background: rgba(52,211,153,.10); color: var(--ok);
+  border: 1px solid rgba(52,211,153,.35); border-radius: 10px;
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: left;
+}
+.sb-practice span { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.sb-practice:hover { border-color: var(--ok); background: rgba(52,211,153,.16); }
+
+body.practice-mode .sidebar, body.practice-mode .menu-toggle { display: none !important; }
+body.practice-mode .inner, body.nav-collapsed.practice-mode .inner { padding-top: 22px; }
+.inner.practice { max-width: 780px; }
+.practice-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.practice-top h2 { margin: 0 0 0 8px; font-size: 24px; }
+.practice-top .btn { min-height: 38px; padding: 6px 13px; font-size: 13.5px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px;
+  padding: 10px 14px; min-height: 44px; max-width: 100%;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  font: inherit; font-size: 14.5px; cursor: pointer; text-align: left;
+}
+.chip:hover { border-color: var(--ok); }
+.chip .n { color: var(--muted); font-size: 12.5px; }
+.chip-stat { flex-basis: 100%; font-size: 11.5px; color: var(--ok); }
+.chip.mix { border-style: dashed; color: var(--warn); border-color: rgba(251,191,36,.45); }
+.chip.mix:hover { border-color: var(--warn); }
+
+.card.progress { border-left: 3px solid var(--accent-2); }
+.progress-code {
+  display: block; width: 100%; margin-top: 10px; padding: 10px 12px;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 9px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; line-height: 1.5;
+  resize: vertical; word-break: break-all;
+}
+.progress-code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.card.quiz.focus { padding: 26px 30px; }
+.card.quiz.focus .pr-q { font-size: 22px; line-height: 1.7; margin: 8px 0 20px; }
+.card.quiz.focus .pr-choice { font-size: 18px; padding: 14px 22px; min-height: 54px; }
+.card.quiz.focus .pr-input { font-size: 20px; width: 180px; min-height: 54px; }
+.card.quiz.focus .pr-fb { font-size: 17px; }
+.card.quiz.focus .pr-steps { font-size: 15.5px; }
+.card > h3 .h3-act { margin-left: auto; }
+.btn.small { padding: 5px 11px; min-height: 32px; font-size: 13px; }
 
 /* 未建置 / 待確認 */
 .notice {
@@ -353,6 +451,25 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
 .home th { color: var(--muted); font-weight: 600; font-size: 13px; }
 .src-note { font-size: 12.5px; color: var(--muted); line-height: 1.9; margin-top: 8px; }
 .src-note code { color: #b3a2ff; }
+
+/* ---------- 桌機：側欄收合 ----------
+   全部包在 min-width 媒體查詢裡。手機抽屜是用 transform 開關，
+   如果這裡的負邊距不加範圍，視窗跨過 860px 時兩套規則會打架。 */
+@media (min-width: 861px) {
+  .sb-collapse { display: block; }
+  .sidebar {
+    transition: margin-left .22s ease, visibility 0s linear 0s;
+  }
+  body.nav-collapsed .sidebar {
+    margin-left: calc(-1 * var(--sidebar-w));
+    /* 滑出去之後就不該再被 Tab 鍵摸到；visibility 等動畫跑完才切 */
+    visibility: hidden;
+    transition: margin-left .22s ease, visibility 0s linear .22s;
+  }
+  /* 收起後左上角留一顆 ☰ 把它叫回來，內容往下讓開免得壓到麵包屑 */
+  body.nav-collapsed .menu-toggle { display: block; }
+  body.nav-collapsed .inner { padding-top: 70px; }
+}
 
 /* ---------- 手機 / 平板 ---------- */
 .menu-toggle {
@@ -386,6 +503,13 @@ h2.title { margin: 0 0 14px; font-size: 30px; letter-spacing: .5px; }
   .seg { gap: 5px; }
   .seg-btn { padding: 7px 11px; min-height: 40px; font-size: 13.5px; }
   .btn { padding: 8px 13px; min-height: 40px; font-size: 13.5px; }
+
+  /* 練習區在手機上 */
+  .card.quiz.focus { padding: 18px 14px; }
+  .card.quiz.focus .pr-q { font-size: 19px; }
+  .card.quiz.focus .pr-choice { font-size: 16.5px; padding: 12px 16px; }
+  body.practice-mode .inner, body.nav-collapsed.practice-mode .inner { padding-top: 14px; }
+  .practice-top h2 { font-size: 20px; }
 
   /* 首頁表格不撐破版面 */
   .home table { display: block; overflow-x: auto; white-space: nowrap; }

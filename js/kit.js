@@ -73,105 +73,351 @@ const Kit = (function () {
          steps: '解題步驟（HTML）' }
      或
        { q: '...', input: 'number', answer: 42, tolerance: 0, unit: '平方公分', steps: '...' }
-  */
-  function practice(container, makeQuestion, total) {
-    total = total || 5;
-    let idx = 0, correct = 0, current = null, answered = false;
 
+     opts（可省略）：
+       key    章節 id。有給就會在 localStorage 記「本章最佳」與累計題數，
+              孩子看得到自己的進步；沒給就只算這一回合。
+       scope  紀錄的稱呼，預設「本章」；整冊混合時傳「整冊」。
+
+     設計重點（家長陪讀情境）：
+       - 每回合 5／10／20 題可選，同一回合不重複出同一題
+       - 答錯一定明白寫出正確答案，不只靠解題步驟裡有沒有提到
+       - 回合結束有星等、錯題回顧、本章最佳紀錄；全對放彩帶
+       - 答完自動把焦點放到「下一題」，鍵盤 Enter 就能往下走
+  */
+  const QUIZ_LENGTHS = [5, 10, 20];
+  const PRAISE = ['✅ 答對了！', '✅ 沒錯！', '✅ 很好！', '✅ 正確！', '✅ 就是這樣！', '✅ 答對，繼續！'];
+  const PERFECT = ['太厲害了，全對！🎉', '滿分！這一章你已經完全掌握了 🎉', '全部答對，超強！🎉'];
+
+  function loadStats() {
+    try { return JSON.parse(localStorage.getItem('quiz-stats') || '{}') || {}; } catch (e) { return {}; }
+  }
+  function saveStats(all) {
+    try { localStorage.setItem('quiz-stats', JSON.stringify(all)); } catch (e) { /* 私密模式等情況忽略 */ }
+  }
+  /* ---- 進度碼：把 localStorage 裡的成績搬到另一台裝置，不需要帳號、不需要網路 ----
+     格式：EI1. + base64(JSON)。匯入採「合併」：最佳成績取大、累計相加，不會覆蓋掉本機已有的。 */
+  function exportProgress() {
+    const payload = { v: 1, t: new Date().toISOString().slice(0, 10), stats: loadStats() };
+    return 'EI1.' + btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  }
+  function importProgress(code) {
+    code = String(code || '').trim();
+    if (code.indexOf('EI1.') !== 0) throw new Error('這不是進度碼（應該以 EI1. 開頭）');
+    let payload;
+    try { payload = JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); }
+    catch (e) { throw new Error('進度碼不完整或被改過，請重新複製整段'); }
+    if (!payload || payload.v !== 1 || typeof payload.stats !== 'object') throw new Error('進度碼版本不對');
+    const mine = loadStats();
+    let chapters = 0, questions = 0;
+    Object.keys(payload.stats).forEach(k => {
+      const inc = payload.stats[k] || {};
+      const cur = mine[k] || (mine[k] = { best: {}, total: 0, correct: 0, rounds: 0 });
+      cur.total = (cur.total || 0) + (inc.total || 0);
+      cur.correct = (cur.correct || 0) + (inc.correct || 0);
+      cur.rounds = (cur.rounds || 0) + (inc.rounds || 0);
+      cur.best = cur.best || {};
+      Object.keys(inc.best || {}).forEach(len => {
+        if (cur.best[len] === undefined || inc.best[len] > cur.best[len]) cur.best[len] = inc.best[len];
+      });
+      chapters++; questions += inc.total || 0;
+    });
+    saveStats(mine);
+    return { chapters: chapters, questions: questions, date: payload.t };
+  }
+  function clearProgress() { try { localStorage.removeItem('quiz-stats'); } catch (e) { /* ignore */ } }
+
+  /* 0.1+0.2 這種浮點尾巴不要原樣印出來 */
+  function fmtNum(v) { return Number.isInteger(v) ? String(v) : String(parseFloat(v.toFixed(6))); }
+
+  /* 全對時在練習題卡片上撒一下彩帶，兩秒多就自己收掉。尊重「減少動態效果」設定。 */
+  function confetti(host) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const card = (host.closest && host.closest('.card')) || host;
+    const W = card.clientWidth, H = card.clientHeight;
+    if (!W || !H) return;
+    const cv = el('canvas', { class: 'pr-confetti' });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    card.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const colors = ['#4da3ff', '#7c5cff', '#34d399', '#fbbf24', '#fb7185', '#e8eefc'];
+    const ps = [];
+    for (let i = 0; i < 90; i++) {
+      ps.push({
+        x: Math.random() * W, y: -10 - Math.random() * Math.min(H, 300) * 0.5,
+        vx: (Math.random() - 0.5) * 80, vy: 140 + Math.random() * 180,
+        s: 5 + Math.random() * 5, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 8,
+        c: colors[i % colors.length]
+      });
+    }
+    const t0 = performance.now();
+    let last = t0;
+    function frame(now) {
+      if (!cv.parentNode) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const life = (now - t0) / 1000;
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = life > 1.8 ? Math.max(0, 1 - (life - 1.8) / 0.6) : 1;
+      ps.forEach(p => {
+        p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; p.r += p.vr * dt;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+        ctx.restore();
+      });
+      if (life < 2.4) requestAnimationFrame(frame);
+      else cv.parentNode.removeChild(cv);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function practice(container, makeQuestion, total, opts) {
+    opts = opts || {};
+    const key = opts.key || '';
+    const defaultLen = total || 5;
+    const lengths = QUIZ_LENGTHS.indexOf(defaultLen) >= 0 ? QUIZ_LENGTHS : [defaultLen].concat(QUIZ_LENGTHS);
+    let len = defaultLen;
+    try {
+      const saved = parseInt(localStorage.getItem('quiz-len'), 10);
+      if (lengths.indexOf(saved) >= 0) len = saved;
+    } catch (e) { /* ignore */ }
+    const finePointer = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    let idx = 0, correct = 0, streak = 0, bestStreak = 0;
+    let current = null, answered = false, finished = false, interacted = false;
+    let results = [], wrongs = [];
+    const recent = [];   // 最近出過的題目文字，用來避免同一回合重複
+
+    /* ---- 元件 ---- */
+    const top = el('div', { class: 'pr-top' });
+    const best = el('span', { class: 'pr-best' });
     const progress = el('div', { class: 'pr-progress' });
     const qBox = el('div', { class: 'pr-q' });
     const ansBox = el('div', { class: 'pr-a' });
-    const fb = el('div', { class: 'pr-fb' });
-    const nextBtn = button('下一題 →', next, 'primary');
+    const fb = el('div', { class: 'pr-fb', 'aria-live': 'polite' });
+    const actions = el('div', { class: 'pr-actions' });
+    const nextBtn = button('下一題 →', onNext, 'primary');
+    const backBtn = button('↑ 回到互動教具', () => {
+      const inner = container.closest && container.closest('.inner');
+      const first = inner && inner.querySelector('.card');
+      (first || container).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     nextBtn.style.display = 'none';
+    backBtn.style.display = 'none';
+    actions.appendChild(nextBtn);
+    actions.appendChild(backBtn);
 
+    const seg = segmented('每回合', lengths.map(n => ({ label: n + ' 題', value: n })), v => {
+      interacted = true;
+      len = v;
+      try { localStorage.setItem('quiz-len', String(v)); } catch (e) { /* ignore */ }
+      restart();
+    }, len);
+    top.appendChild(seg.wrap);
+    top.appendChild(best);
+
+    container.appendChild(top);
     container.appendChild(progress);
     container.appendChild(qBox);
     container.appendChild(ansBox);
     container.appendChild(fb);
-    container.appendChild(nextBtn);
+    container.appendChild(actions);
+
+    /* ---- 紀錄（localStorage） ---- */
+    function chapterStats(all) {
+      return all[key] || (all[key] = { best: {}, total: 0, correct: 0, rounds: 0 });
+    }
+    function recordAnswer(ok) {
+      if (!key) return;
+      const all = loadStats(), s = chapterStats(all);
+      s.total = (s.total || 0) + 1;
+      if (ok) s.correct = (s.correct || 0) + 1;
+      saveStats(all);
+    }
+    /* 回傳是否刷新本章（這個題數）的最佳成績 */
+    function recordRound() {
+      if (!key) return false;
+      const all = loadStats(), s = chapterStats(all);
+      s.rounds = (s.rounds || 0) + 1;
+      s.best = s.best || {};
+      const prev = s.best[len];
+      const isNew = prev === undefined || correct > prev;
+      if (isNew) s.best[len] = correct;
+      saveStats(all);
+      return isNew && prev !== undefined;   // 第一次玩不算「刷新」
+    }
+    function paintBest() {
+      if (!key) { best.innerHTML = ''; return; }
+      const s = loadStats()[key];
+      const b = s && s.best && s.best[len];
+      const scope = opts.scope || '本章';
+      best.innerHTML = (b !== undefined ? scope + '最佳 <b>' + b + '／' + len + '</b>' : scope + '還沒有紀錄') +
+        (s && s.total ? '　累計練了 ' + s.total + ' 題' : '');
+    }
+
+    /* ---- 出題：同一回合盡量不重複 ---- */
+    function draw() {
+      let q = makeQuestion(), tries = 0;
+      // 有些題型只有四五種變化，試幾次沒新的就接受重複，不能無限重抽
+      while (tries++ < 12 && recent.indexOf(q.q) >= 0) q = makeQuestion();
+      recent.push(q.q);
+      if (recent.length > 40) recent.shift();
+      return q;
+    }
+
+    function fmtAnswer(cur) {
+      if (cur.choices) return '<b>' + cur.choices[cur.answer] + '</b>';
+      let a = cur.answer;
+      // 有容許誤差的題目（例如 1800÷7 度）照誤差的精度四捨五入，不要印出 128.571429
+      if (cur.tolerance > 0 && !Number.isInteger(a)) {
+        const d = Math.min(6, Math.max(0, Math.ceil(-Math.log10(cur.tolerance))));
+        a = parseFloat(a.toFixed(d));
+      }
+      return '<b>' + fmtNum(a) + '</b>' + (cur.unit ? ' ' + cur.unit : '');
+    }
 
     function paintProgress() {
       progress.innerHTML = '';
-      for (let i = 0; i < total; i++) {
-        progress.appendChild(el('span', { class: 'dot' + (i < idx ? ' done' : i === idx ? ' now' : '') }));
+      progress.classList.toggle('dense', len >= 20);
+      for (let i = 0; i < len; i++) {
+        let cls = 'dot';
+        if (i < idx) cls += ' done' + (results[i] === false ? ' wrong' : '');
+        else if (i === idx && !finished) cls += ' now';
+        progress.appendChild(el('span', { class: cls }));
       }
-      progress.appendChild(el('span', { class: 'pr-count', text: '答對 ' + correct + ' / ' + total }));
+      progress.appendChild(el('span', {
+        class: 'pr-count',
+        text: finished ? '答對 ' + correct + ' / ' + len : '第 ' + (idx + 1) + ' / ' + len + ' 題　答對 ' + correct
+      }));
     }
 
     function judge(ok, userText) {
       if (answered) return;
       answered = true;
-      if (ok) correct++;
+      results[idx] = ok;
+      if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; }
+      else { streak = 0; wrongs.push({ q: current, user: userText }); }
+      recordAnswer(ok);
+
       fb.className = 'pr-fb ' + (ok ? 'ok' : 'no');
-      fb.innerHTML = (ok ? '✅ 答對了！' : '❌ 再看一次：你選的是 ' + userText) +
-        (current.steps ? '<div class="pr-steps"><b>怎麼想：</b>' + current.steps + '</div>' : '');
+      let head;
+      if (ok) {
+        head = pick(PRAISE);
+        if (streak >= 2) head += '<span class="pr-streak">🔥 連續答對 ' + streak + ' 題</span>';
+      } else {
+        head = '❌ ' + (current.choices ? '你選的是' : '你填的是') + ' <s>' + userText + '</s>，' +
+          '<span class="ans">正確答案是 ' + fmtAnswer(current) + '</span>';
+      }
+      fb.innerHTML = head + (current.steps ? '<div class="pr-steps"><b>怎麼想：</b>' + current.steps + '</div>' : '');
       Array.prototype.forEach.call(ansBox.querySelectorAll('button,input'), n => n.disabled = true);
       nextBtn.style.display = '';
-      nextBtn.textContent = (idx + 1 >= total) ? '看結果' : '下一題 →';
+      nextBtn.textContent = (idx + 1 >= len) ? '看結果' : '下一題 →';
       paintProgress();
+      // 焦點放到「下一題」：鍵盤 Enter／空白鍵就能前進（按鈕不會叫出手機鍵盤）。
+      // 手機上解題步驟一展開，按鈕常被推到畫面外，順手捲進來。
+      nextBtn.focus({ preventScroll: true });
+      nextBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
     function render() {
       answered = false;
-      current = makeQuestion();
+      finished = false;
+      current = draw();
       qBox.innerHTML = current.q;
       ansBox.innerHTML = '';
       fb.className = 'pr-fb';
       fb.innerHTML = '';
       nextBtn.style.display = 'none';
+      backBtn.style.display = 'none';
 
       if (current.choices) {
         current.choices.forEach((c, i) => {
           const b = el('button', { type: 'button', class: 'pr-choice', html: c });
           b.addEventListener('click', () => {
             b.classList.add(i === current.answer ? 'ok' : 'no');
-            if (i !== current.answer) {
-              ansBox.children[current.answer].classList.add('ok');
-            }
+            if (i !== current.answer) ansBox.children[current.answer].classList.add('ok');
             judge(i === current.answer, c);
           });
           ansBox.appendChild(b);
         });
       } else {
-        const inp = el('input', { type: 'number', step: 'any', class: 'pr-input', placeholder: '輸入答案' });
+        const inp = el('input', { type: 'number', step: 'any', class: 'pr-input', placeholder: '輸入答案', inputmode: 'decimal' });
         const go = button('送出', () => {
           const v = parseFloat(inp.value);
           if (isNaN(v)) { fb.className = 'pr-fb no'; fb.textContent = '請先輸入一個數字'; return; }
-          judge(Math.abs(v - current.answer) <= (current.tolerance || 0), v);
+          judge(Math.abs(v - current.answer) <= (current.tolerance || 0), fmtNum(v));
         }, 'primary');
         inp.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
         ansBox.appendChild(inp);
         if (current.unit) ansBox.appendChild(el('span', { class: 'pr-unit', text: current.unit }));
         ansBox.appendChild(go);
+        // 桌機上按過「下一題」之後直接把游標放進輸入框。章節剛載入的第一題不做：
+        // 練習題在頁面最底，搶焦點會把整頁捲過去，教具就看不到了。
+        if (interacted && finePointer) inp.focus({ preventScroll: true });
       }
       paintProgress();
     }
 
-    function next() {
-      idx++;
-      if (idx >= total) {
-        qBox.innerHTML = '<div class="pr-done">本回合結束：答對 <b>' + correct + '</b> / ' + total + ' 題</div>';
-        ansBox.innerHTML = '';
-        fb.className = 'pr-fb';
-        fb.innerHTML = correct === total ? '太厲害了，全對！' :
-          correct >= total * 0.6 ? '不錯，錯的那幾題再回去玩一次上面的教具。' :
-            '建議先回到上面的互動教具多操作幾次，再回來練習。';
-        nextBtn.textContent = '再來一回合';
-        nextBtn.style.display = '';
-        nextBtn.onclick = null;
-        nextBtn.addEventListener('click', function restart() {
-          nextBtn.removeEventListener('click', restart);
-          idx = 0; correct = 0;
-          nextBtn.addEventListener('click', next);
-          render();
-        }, { once: true });
-        paintProgress();
-        return;
+    function finish() {
+      finished = true;
+      const isNewBest = recordRound();
+      const ratio = correct / len;
+      const stars = ratio === 1 ? 3 : ratio >= 0.6 ? 2 : 1;
+
+      qBox.innerHTML =
+        '<div class="pr-stars">' + '★'.repeat(stars) + '<span class="off">' + '★'.repeat(3 - stars) + '</span></div>' +
+        '<div class="pr-done">本回合：答對 <b>' + correct + '</b> / ' + len + ' 題' +
+        (isNewBest ? '　🏆 本章新紀錄！' : '') + '</div>';
+      ansBox.innerHTML = '';
+      fb.className = 'pr-fb';
+      let msg = stars === 3 ? pick(PERFECT) :
+        stars === 2 ? '不錯！錯的題目看一下下面的回顧，再回去玩一次上面的教具。' :
+          '別急，先回到上面的互動教具多操作幾次，再回來練習。每練一次都會進步！';
+      if (bestStreak >= 3 && stars < 3) msg += '<br>這回合最長連續答對 <b>' + bestStreak + '</b> 題，很棒。';
+      fb.innerHTML = msg;
+
+      if (wrongs.length) {
+        const rv = el('div', { class: 'pr-review' });
+        rv.appendChild(el('h4', { text: '錯題回顧（' + wrongs.length + ' 題）——可以照著再問一次孩子' }));
+        wrongs.forEach((w, i) => {
+          const item = el('div', { class: 'pr-review-item' }, [
+            el('div', { class: 'rq', html: (i + 1) + '. ' + w.q.q }),
+            el('div', { class: 'ra', html: '孩子的答案：<s>' + w.user + '</s>　正確答案：' + fmtAnswer(w.q) })
+          ]);
+          if (w.q.steps) item.appendChild(el('div', { class: 'pr-steps', html: '<b>怎麼想：</b>' + w.q.steps }));
+          rv.appendChild(item);
+        });
+        fb.appendChild(rv);
       }
+
+      nextBtn.textContent = '再來一回合';
+      nextBtn.style.display = '';
+      backBtn.style.display = wrongs.length ? '' : 'none';
+      paintProgress();
+      paintBest();
+      if (stars === 3) confetti(container);
+      nextBtn.focus({ preventScroll: true });
+    }
+
+    /* 同一顆按鈕，依狀態決定是「下一題」還是「再來一回合」。
+       （舊版在結束時另外疊一個 once listener，原本的 next 沒拆掉，
+       導致第二回合按第一次「下一題」就整回合被重置。） */
+    function onNext() {
+      interacted = true;
+      if (finished) { restart(); return; }
+      idx++;
+      if (idx >= len) finish(); else render();
+    }
+    function restart() {
+      idx = 0; correct = 0; streak = 0; bestStreak = 0;
+      results = []; wrongs = [];
+      paintBest();   // 題數換了，「本章最佳」要換成該題數的紀錄
       render();
     }
 
+    paintBest();
     render();
   }
 
@@ -663,6 +909,7 @@ const Kit = (function () {
     button: button, practice: practice, scene3d: scene3d, unitCube: unitCube,
     person: person, scenery: scenery, firstPerson: firstPerson, exitFirstPerson: exitFirstPerson,
     keepSpriteSize: keepSpriteSize, fullscreen: fullscreen,
-    canvas2d: canvas2d, randInt: randInt, pick: pick, shuffle: shuffle, gcd: gcd
+    canvas2d: canvas2d, randInt: randInt, pick: pick, shuffle: shuffle, gcd: gcd,
+    quizStats: loadStats, exportProgress: exportProgress, importProgress: importProgress, clearProgress: clearProgress
   };
 })();

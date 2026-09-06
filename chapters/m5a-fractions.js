@@ -202,7 +202,116 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['reduce', 'lcd', 'compare', 'expand']);
+      // 題型依均一「五上第四單元 擴分、約分和通分」小節：找等值分數／判斷最簡分數／
+      // 帶分數的擴分／分數大小排序／找出兩個分數之間的分數
+      const type = Kit.pick(['reduce', 'lcd', 'compare', 'expand', 'equivPick', 'simplest', 'order', 'between', 'mixedEquiv']);
+      function fr(n, d) {
+        const g = Kit.gcd(n, d); n /= g; d /= g;
+        if (d === 1) return String(n);
+        if (n < d) return n + '/' + d;
+        const w = Math.floor(n / d), r = n - w * d;
+        return r ? w + '又' + r + '/' + d : String(w);
+      }
+      function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+      function simpleFrac(d) { let n; do { n = Kit.randInt(1, d - 1); } while (Kit.gcd(n, d) !== 1); return { n: n, d: d }; }
+
+      if (type === 'equivPick') {
+        const f = simpleFrac(Kit.pick([2, 3, 4, 5, 6])), k = Kit.randInt(2, 5);
+        // 干擾選項各對應一種錯誤：分子分母加同一個數／只乘分子／只乘分母
+        const cands = [
+          { t: (f.n * k) + '/' + (f.d * k), v: f.n / f.d, ok: true },
+          { t: (f.n + k) + '/' + (f.d + k), v: (f.n + k) / (f.d + k) },
+          { t: (f.n * k) + '/' + f.d, v: f.n * k / f.d },
+          { t: f.n + '/' + (f.d * k), v: f.n / (f.d * k) }
+        ];
+        const seen = {}, items = [];
+        cands.forEach(c => { const key = c.v.toFixed(6); if (!seen[key]) { seen[key] = 1; items.push(c); } });
+        for (let i = 1; items.length < 4; i++) { const c = { t: (f.n * k + i) + '/' + (f.d * k), v: (f.n * k + i) / (f.d * k) }; const key = c.v.toFixed(6); if (!seen[key]) { seen[key] = 1; items.push(c); } }
+        const o = shuffled(items);
+        return {
+          q: '下面哪一個分數和 <b>' + f.n + '/' + f.d + '</b> 一樣大？',
+          choices: o.choices, answer: o.answer,
+          steps: '等值分數：分子和分母<b>同時乘同一個數</b>。' + f.n + '/' + f.d + ' 的分子分母都 × ' + k + ' → <b>' + (f.n * k) + '/' + (f.d * k) + '</b><br>' +
+            '<span style="color:var(--muted)">⚠️ 分子分母「同加一個數」不是等值分數：' + (f.n + k) + '/' + (f.d + k) + ' 和 ' + f.n + '/' + f.d + ' 不一樣大。</span>'
+        };
+      }
+
+      if (type === 'simplest') {
+        const good = simpleFrac(Kit.pick([3, 4, 5, 7, 8]));
+        const bads = [], seen = { [good.n + '/' + good.d]: 1 };
+        while (bads.length < 3) {
+          const b = simpleFrac(Kit.pick([2, 3, 4, 5])), m = Kit.randInt(2, 4);
+          const t = (b.n * m) + '/' + (b.d * m);
+          if (!seen[t]) { seen[t] = 1; bads.push({ t: t, g: m, r: b.n + '/' + b.d }); }
+        }
+        const o = shuffled([{ t: good.n + '/' + good.d, ok: true }].concat(bads.map(b => ({ t: b.t }))));
+        return {
+          q: '下面哪一個是<b>最簡分數</b>？',
+          choices: o.choices, answer: o.answer,
+          steps: '最簡分數：分子和分母<b>除了 1 以外沒有公因數</b>，不能再約。<br>' +
+            bads.map(b => b.t + ' 還能約（同除以 ' + b.g + ' → ' + b.r + '）').join('；') + '。<br>' +
+            good.n + '/' + good.d + ' 的分子分母只有公因數 1 → <b>是最簡分數</b>。'
+        };
+      }
+
+      if (type === 'order') {
+        let fs, vals;
+        do {
+          const ds = Kit.shuffle([2, 3, 4, 5, 6, 8]).slice(0, 3);
+          fs = ds.map(simpleFrac);
+          vals = fs.map(f => f.n / f.d);
+        } while (new Set(vals.map(v => v.toFixed(6))).size < 3);
+        const sorted = fs.slice().sort((x, y) => x.n / x.d - y.n / y.d);
+        const txt = arr => arr.map(f => f.n + '/' + f.d).join(' ＜ ');
+        const asc = txt(sorted), desc = txt(sorted.slice().reverse());
+        // 第三個干擾：按「分子大小」或「分母大小」排的錯誤順序（若和正解一樣就換）
+        let byNum = fs.slice().sort((x, y) => x.n - y.n || x.d - y.d), alt = txt(byNum);
+        if (alt === asc || alt === desc) { byNum = fs.slice().sort((x, y) => y.d - x.d || x.n - y.n); alt = txt(byNum); }
+        if (alt === asc || alt === desc) { alt = txt([sorted[1], sorted[0], sorted[2]]); }
+        const L = sorted.reduce((l, f) => lcm(l, f.d), 1);
+        const o = shuffled([{ t: asc, ok: true }, { t: desc }, { t: alt }]);
+        return {
+          q: '把 <b>' + fs.map(f => f.n + '/' + f.d).join('、') + '</b> 由小到大排，正確的是？',
+          choices: o.choices, answer: o.answer,
+          steps: '全部通分到 <b>' + L + '</b>：' + sorted.map(f => f.n + '/' + f.d + ' ＝ ' + (f.n * L / f.d) + '/' + L).join('，') + '<br>' +
+            '分母一樣後比分子：' + sorted.map(f => f.n * L / f.d).join(' ＜ ') + '，所以 <b>' + asc + '</b>。<br>' +
+            '<span style="color:var(--muted)">⚠️ 不能只看分子或只看分母。</span>'
+        };
+      }
+
+      if (type === 'between') {
+        let lo, hi, L, nlo, nhi;
+        do {
+          lo = simpleFrac(Kit.pick([2, 3, 4, 5])); hi = simpleFrac(Kit.pick([2, 3, 4, 5, 6]));
+          if (lo.n / lo.d > hi.n / hi.d) { const t = lo; lo = hi; hi = t; }
+          L = lcm(lo.d, hi.d); nlo = lo.n * L / lo.d; nhi = hi.n * L / hi.d;
+          if (nhi - nlo < 2) { L *= 2; nlo *= 2; nhi *= 2; }
+        } while (lo.d === hi.d || nhi - nlo < 2);
+        const mid = Kit.randInt(nlo + 1, nhi - 1);
+        const o = shuffled([
+          { t: fr(mid, L), ok: true },
+          { t: fr(Math.max(1, nlo - 1), L) }, { t: fr(nhi + 1, L) }, { t: fr(nhi + L, L) }
+        ].filter((x, i, arr) => arr.findIndex(y => y.t === x.t) === i));
+        return {
+          q: '下面哪一個分數在 <b>' + lo.n + '/' + lo.d + '</b> 和 <b>' + hi.n + '/' + hi.d + '</b> 之間？',
+          choices: o.choices, answer: o.answer,
+          steps: '先通分到 <b>' + L + '</b>：' + lo.n + '/' + lo.d + ' ＝ ' + nlo + '/' + L + '，' + hi.n + '/' + hi.d + ' ＝ ' + nhi + '/' + L + '<br>' +
+            '中間的分數分子要在 ' + nlo + ' 和 ' + nhi + ' 之間，例如 ' + mid + '/' + L + (fr(mid, L) !== mid + '/' + L ? ' ＝ ' + fr(mid, L) : '') + '。<br>' +
+            '<span style="color:var(--muted)">兩個分數之間永遠找得到別的分數——公分母放大就有更多空位。</span>'
+        };
+      }
+
+      if (type === 'mixedEquiv') {
+        const w = Kit.randInt(1, 3), f0 = simpleFrac(Kit.pick([2, 3, 4, 5])), k0 = Kit.randInt(2, 4);
+        return {
+          q: '<b>' + w + '又' + f0.n + '/' + f0.d + ' ＝ ' + w + '又□/' + (f0.d * k0) + '</b>，□ 要填多少？',
+          input: 'number', answer: f0.n * k0,
+          steps: '帶分數擴分時<b>整數部分不變</b>，只擴分後面的分數。<br>' +
+            '分母 ' + f0.d + ' → ' + (f0.d * k0) + ' 是 × ' + k0 + '，分子也 × ' + k0 + '：' + f0.n + ' × ' + k0 + ' ＝ <b>' + (f0.n * k0) + '</b><br>' +
+            '所以 ' + w + '又' + f0.n + '/' + f0.d + ' ＝ ' + w + '又' + (f0.n * k0) + '/' + (f0.d * k0)
+        };
+      }
+
 
       if (type === 'reduce') {
         const g = Kit.randInt(2, 8), s = Kit.pick([[1, 2], [2, 3], [3, 4], [3, 5], [5, 6], [4, 7], [5, 8]]);
@@ -400,7 +509,167 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['add', 'add', 'sub', 'spot']);
+      // 題型依均一「五上第六單元 異分母分數的加減」小節：加法／減法／先換帶分數再通分／
+      // 進退位／應用題／加減互逆／二步驟問題／用基準數估算
+      const type = Kit.pick(['add', 'add', 'sub', 'sub', 'spot', 'mixed', 'word', 'inverse', 'three', 'estimate']);
+
+      /* ---- 共用小工具（只在這個 quiz 裡用） ---- */
+      // 分數轉文字：假分數自動寫成帶分數「1又2/3」，整數直接寫整數
+      function fr(n, d) {
+        if (n === 0) return '0';
+        const g = Kit.gcd(n, d); n /= g; d /= g;
+        if (d === 1) return String(n);
+        if (n < d) return n + '/' + d;
+        const w = Math.floor(n / d), r = n - w * d;
+        return r ? w + '又' + r + '/' + d : String(w);
+      }
+      // 選項：依「數值」去重（不是字面），正解一定保留；候選不夠就用 pad(i) 補
+      function opts(items, pad) {
+        items.sort((x, y) => (y.ok ? 1 : 0) - (x.ok ? 1 : 0));
+        const seen = {}, out = [];
+        items.forEach(it => { const k = it.v.toFixed(6); if (!seen[k]) { seen[k] = 1; out.push(it); } });
+        for (let i = 1; out.length < 4 && pad && i < 12; i++) {
+          const c = pad(i); if (!c) continue;
+          const k = c.v.toFixed(6); if (!seen[k]) { seen[k] = 1; out.push(c); }
+        }
+        const sh = Kit.shuffle(out);
+        return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) };
+      }
+      const fItem = (n, d, ok) => ({ v: n / d, t: fr(n, d), ok: !!ok });
+      // 抽兩個「分母不同」的真分數
+      function twoFracs(dens) {
+        let d1, d2, n1, n2;
+        // 分母不同，而且兩個都已經是最簡分數（否則通分的公分母會讓人看不懂）
+        do { d1 = Kit.pick(dens); d2 = Kit.pick(dens); n1 = Kit.randInt(1, d1 - 1); n2 = Kit.randInt(1, d2 - 1); }
+        while (d1 === d2 || Kit.gcd(n1, d1) !== 1 || Kit.gcd(n2, d2) !== 1);
+        return [{ n: n1, d: d1 }, { n: n2, d: d2 }];
+      }
+      // 抽一個最簡真分數
+      function simpleFrac(d) { let n; do { n = Kit.randInt(1, d - 1); } while (Kit.gcd(n, d) !== 1); return { n: n, d: d }; }
+
+      if (type === 'mixed') {
+        // 帶分數加減：先換成假分數（或整數、分數分開算），減法有一半機會需要退位
+        const isSub = Math.random() < .5;
+        let [f1, f2] = twoFracs([2, 3, 4, 5, 6, 8]);
+        let w1 = Kit.randInt(1, 4), w2 = Kit.randInt(1, 3);
+        const L = lcm(f1.d, f2.d);
+        let n1 = f1.n * L / f1.d, n2 = f2.n * L / f2.d;
+        if (isSub && (w1 < w2 || (w1 === w2 && n1 <= n2))) { let t = w1; w1 = w2; w2 = t; t = f1; f1 = f2; f2 = t; t = n1; n1 = n2; n2 = t; }
+        const total1 = w1 * L + n1, total2 = w2 * L + n2;
+        const rn = isSub ? total1 - total2 : total1 + total2;
+        const A = w1 + '又' + f1.n + '/' + f1.d, B = w2 + '又' + f2.n + '/' + f2.d, op = isSub ? '－' : '＋';
+        const borrow = isSub && n1 < n2;
+        const carry = !isSub && n1 + n2 >= L;
+        let stepMid;
+        if (isSub) {
+          stepMid = borrow
+            ? '分數部分 ' + n1 + '/' + L + ' 不夠減 ' + n2 + '/' + L + '，向整數<b>借 1</b>（＝' + L + '/' + L + '）：' +
+              (w1 - 1) + '又' + (n1 + L) + '/' + L + ' － ' + w2 + '又' + n2 + '/' + L + '<br>' +
+              '整數：' + (w1 - 1) + ' － ' + w2 + ' ＝ ' + (w1 - 1 - w2) + '；分數：' + (n1 + L) + ' － ' + n2 + ' ＝ ' + (n1 + L - n2) + ' → ' + (n1 + L - n2) + '/' + L
+            : '整數和分數分開減：整數 ' + w1 + ' － ' + w2 + ' ＝ ' + (w1 - w2) + '；分數 ' + n1 + '/' + L + ' － ' + n2 + '/' + L + ' ＝ ' + (n1 - n2) + '/' + L;
+        } else {
+          stepMid = '整數和分數分開加：整數 ' + w1 + ' ＋ ' + w2 + ' ＝ ' + (w1 + w2) + '；分數 ' + n1 + '/' + L + ' ＋ ' + n2 + '/' + L + ' ＝ ' + (n1 + n2) + '/' + L +
+            (carry ? '，滿 1 要<b>進位</b>：' + (n1 + n2) + '/' + L + ' ＝ 1又' + (n1 + n2 - L) + '/' + L : '');
+        }
+        const wrongNaive = isSub ? (w1 - w2) * (f1.d + f2.d) + Math.abs(f1.n - f2.n) : (w1 + w2) * (f1.d + f2.d) + f1.n + f2.n; // 分子加分子、分母加分母
+        const o = opts([
+          fItem(rn, L, true),
+          fItem(wrongNaive, f1.d + f2.d),            // 分母相加的典型錯誤
+          fItem(rn + L, L), fItem(rn - L > 0 ? rn - L : rn + 2 * L, L)   // 整數部分差 1
+        ], i => fItem(rn + i, L));
+        return {
+          q: '<b>' + A + ' ' + op + ' ' + B + '</b> ＝ ?',
+          choices: o.choices, answer: o.answer,
+          steps: '① 分數部分先通分到 <b>' + L + '</b>：' + f1.n + '/' + f1.d + ' ＝ ' + n1 + '/' + L + '，' + f2.n + '/' + f2.d + ' ＝ ' + n2 + '/' + L + '<br>' +
+            '② ' + stepMid + '<br>' +
+            '③ 合起來並約分 → <b>' + fr(rn, L) + '</b>' +
+            (borrow ? '<br><span style="color:var(--muted)">⚠️ 退位時借來的 1 要換成 ' + L + '/' + L + '，不是 10/10。</span>' : '')
+        };
+      }
+
+      if (type === 'word') {
+        const [f1, f2] = twoFracs([2, 3, 4, 5, 6, 8]);
+        const L = lcm(f1.d, f2.d), n1 = f1.n * L / f1.d, n2 = f2.n * L / f2.d;
+        const ctx = Kit.pick([
+          { add: true, q: '小華喝了 <b>' + fr(f1.n, f1.d) + '</b> 瓶果汁，姊姊喝了 <b>' + fr(f2.n, f2.d) + '</b> 瓶。兩人共喝了幾瓶？', u: '瓶' },
+          { add: true, q: '媽媽早上走了 <b>' + fr(f1.n, f1.d) + '</b> 公里，下午走了 <b>' + fr(f2.n, f2.d) + '</b> 公里。今天總共走了幾公里？', u: '公里' },
+          { add: false, q: '一條繩子長 <b>' + fr(Math.max(n1, n2), L) + '</b> 公尺，用掉 <b>' + fr(Math.min(n1, n2), L) + '</b> 公尺，剩下幾公尺？', u: '公尺' },
+          { add: false, q: '一塊披薩，哥哥吃了 <b>' + fr(Math.max(n1, n2), L) + '</b> 塊，弟弟吃了 <b>' + fr(Math.min(n1, n2), L) + '</b> 塊。哥哥比弟弟多吃幾塊？', u: '塊' }
+        ]);
+        const big = Math.max(n1, n2), small = Math.min(n1, n2);
+        const rn = ctx.add ? n1 + n2 : big - small;
+        if (!ctx.add && rn === 0) return { q: '<b>' + fr(n1, L) + ' ＋ ' + fr(n2, L) + '</b> ＝ ?', choices: ['1', '1/2', '2', '0'], answer: 0, steps: '兩個一樣大的分數相加。' };
+        const naive = ctx.add ? fItem(f1.n + f2.n, f1.d + f2.d) : fItem(Math.abs(f1.n - f2.n) || 1, f1.d + f2.d);
+        const o = opts([fItem(rn, L, true), naive, fItem(ctx.add ? big - small || 1 : n1 + n2, L), fItem(rn * 2, L)], i => fItem(rn + i, L));
+        return {
+          q: ctx.q + '（答案用最簡分數）',
+          choices: o.choices, answer: o.answer,
+          steps: '「' + (ctx.add ? '共、總共' : '剩下、多') + '」→ 用<b>' + (ctx.add ? '加法' : '減法') + '</b>。<br>' +
+            '通分到 ' + L + '：' + fr(f1.n, f1.d) + ' ＝ ' + n1 + '/' + L + '，' + fr(f2.n, f2.d) + ' ＝ ' + n2 + '/' + L + '<br>' +
+            (ctx.add ? n1 + ' ＋ ' + n2 : big + ' － ' + small) + ' ＝ ' + rn + ' → ' + rn + '/' + L + (fr(rn, L) === rn + '/' + L ? '' : ' ＝ ' + fr(rn, L)) + '，答案 <b>' + fr(rn, L) + '</b> ' + ctx.u
+        };
+      }
+
+      if (type === 'inverse') {
+        // 加減互逆：□ ＋ a ＝ s、□ － a ＝ r、s － □ ＝ a
+        const [fa, fb] = twoFracs([2, 3, 4, 5, 6, 8]);
+        const L = lcm(fa.d, fb.d), na = fa.n * L / fa.d, nb = fb.n * L / fb.d;   // □ ＝ nb/L
+        const form = Kit.pick(['plus', 'minus', 'from']);
+        let q, how, ans = nb;
+        if (form === 'plus') {          // □ ＋ a ＝ s
+          q = '<b>□ ＋ ' + fr(fa.n, fa.d) + ' ＝ ' + fr(na + nb, L) + '</b>，□ 是多少？';
+          how = '加法反過來是減法：□ ＝ ' + fr(na + nb, L) + ' － ' + fr(fa.n, fa.d) + ' ＝ ' + (na + nb) + '/' + L + ' － ' + na + '/' + L + ' ＝ ' + nb + '/' + L;
+        } else if (form === 'minus') {  // □ － a ＝ r
+          q = '<b>□ － ' + fr(fa.n, fa.d) + ' ＝ ' + fr(nb, L) + '</b>，□ 是多少？';
+          ans = na + nb;
+          how = '減法反過來是加法：□ ＝ ' + fr(nb, L) + ' ＋ ' + fr(fa.n, fa.d) + ' ＝ ' + nb + '/' + L + ' ＋ ' + na + '/' + L + ' ＝ ' + (na + nb) + '/' + L;
+        } else {                        // s － □ ＝ a
+          q = '<b>' + fr(na + nb, L) + ' － □ ＝ ' + fr(fa.n, fa.d) + '</b>，□ 是多少？';
+          how = '被減數 － 差 ＝ 減數：□ ＝ ' + fr(na + nb, L) + ' － ' + fr(fa.n, fa.d) + ' ＝ ' + (na + nb) + '/' + L + ' － ' + na + '/' + L + ' ＝ ' + nb + '/' + L;
+        }
+        const o = opts([fItem(ans, L, true), fItem(na, L), fItem(na + nb + (form === 'minus' ? 0 : nb), L), fItem(Math.abs(nb - na) || 1, L)], i => fItem(ans + i, L));
+        return { q: q, choices: o.choices, answer: o.answer, steps: how + ' ＝ <b>' + fr(ans, L) + '</b>' };
+      }
+
+      if (type === 'three') {
+        // 二步驟：三個分數連加減，一次通分到共同分母
+        const dens = [2, 3, 4, 6];
+        const d1 = Kit.pick(dens), d2 = Kit.pick(dens), d3 = Kit.pick(dens);
+        const a = simpleFrac(d1), b = simpleFrac(d2), c = simpleFrac(d3);
+        const L = lcm(lcm(d1, d2), d3);
+        const na = a.n * L / d1, nb = b.n * L / d2, nc = c.n * L / d3;
+        const op2 = Math.random() < .5 ? '＋' : '－', op3 = Math.random() < .5 ? '＋' : '－';
+        let rn = na + (op2 === '＋' ? nb : -nb) + (op3 === '＋' ? nc : -nc);
+        // 結果不能是負的：不夠減就把最前面的分數改成帶分數 1又…
+        let head = fr(a.n, d1), nHead = na;
+        if (rn <= 0) { nHead = na + L; head = fr(nHead, L); rn += L; }
+        // 干擾：最後一步符號用反、多 1、少 1（都要是正的）
+        const flip = rn + (op3 === '＋' ? -2 * nc : 2 * nc);
+        const o = opts([fItem(rn, L, true), fItem(flip > 0 ? flip : rn + 2 * nc, L), fItem(rn + L, L), fItem(Math.max(1, rn - 1), L)], i => fItem(rn + i, L));
+        return {
+          q: '<b>' + head + ' ' + op2 + ' ' + fr(b.n, d2) + ' ' + op3 + ' ' + fr(c.n, d3) + '</b> ＝ ?',
+          choices: o.choices, answer: o.answer,
+          steps: '三個分母 ' + d1 + '、' + d2 + '、' + d3 + ' 的最小公倍數是 <b>' + L + '</b>，一次全部通分：<br>' +
+            head + ' ＝ ' + nHead + '/' + L + '，' + fr(b.n, d2) + ' ＝ ' + nb + '/' + L + '，' + fr(c.n, d3) + ' ＝ ' + nc + '/' + L + '<br>' +
+            '分子由左到右算：' + nHead + ' ' + op2 + ' ' + nb + ' ' + op3 + ' ' + nc + ' ＝ ' + rn + ' → ' + rn + '/' + L + ' ＝ <b>' + fr(rn, L) + '</b>'
+        };
+      }
+
+      if (type === 'estimate') {
+        // 用基準數 1/2 估算：兩個分數各自和 1/2 比，加起來就知道和 1 比大還是小
+        let f1, f2, s;
+        do { [f1, f2] = twoFracs([3, 4, 5, 6, 8]); s = f1.n / f1.d + f2.n / f2.d; } while (Math.abs(s - 1) < 1e-9);
+        const rel = x => x.n * 2 > x.d ? '比 1/2 大' : x.n * 2 < x.d ? '比 1/2 小' : '剛好 1/2';
+        const opts3 = ['比 1 大', '比 1 小', '剛好等於 1'];
+        return {
+          q: '<b>' + fr(f1.n, f1.d) + ' ＋ ' + fr(f2.n, f2.d) + '</b> 的答案，會比 1 大還是小？（先不要算，用「和 1/2 比」的方法估）',
+          choices: opts3, answer: s > 1 ? 0 : 1,
+          steps: fr(f1.n, f1.d) + ' ' + rel(f1) + '，' + fr(f2.n, f2.d) + ' ' + rel(f2) + '。<br>' +
+            (s > 1 ? '兩個加起來就<b>超過 1/2 ＋ 1/2 ＝ 1</b>。' : '兩個加起來<b>不到 1/2 ＋ 1/2 ＝ 1</b>。') + '<br>' +
+            '（實際算：通分到 ' + lcm(f1.d, f2.d) + '，答案是 ' + fr(f1.n * lcm(f1.d, f2.d) / f1.d + f2.n * lcm(f1.d, f2.d) / f2.d, lcm(f1.d, f2.d)) + '。）'
+        };
+      }
+
 
       if (type === 'spot') {
         const opts = Kit.shuffle([

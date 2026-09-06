@@ -114,7 +114,103 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['mul', 'mul', 'bigger', 'place']);
+      // 題型依均一「五下第四單元 小數的乘法」小節：小數的 10、100、1000 倍與 0.1、0.01 倍／
+      // 應用題／估算／被乘數、乘數與積的關係／面積模型
+      const type = Kit.pick(['mul', 'mul', 'bigger', 'place', 'pow10', 'word', 'estimate', 'relation', 'area']);
+      // 小數統一用「整數 ÷ 10 的次方」算，再用 toPrecision 去掉浮點尾巴
+      const clean = v => parseFloat(v.toPrecision(12));
+      const decs = x => (String(x).split('.')[1] || '').length;
+
+      if (type === 'pow10') {
+        const ia = Kit.randInt(11, 999);
+        const a = clean(ia / Kit.pick([10, 100]));
+        const k = Kit.pick([10, 100, 1000, 0.1, 0.01]);
+        // 答案從 a 本身算（a 已去掉尾 0，例如 1.10 → 1.1，不能再拿 ia 反推）
+        const a1000 = Math.round(a * 1000);
+        const ans = k >= 1 ? clean(a1000 * k / 1000) : clean(a1000 / (1000 * (k === 0.1 ? 10 : 100)));
+        const moves = k === 10 ? 1 : k === 100 ? 2 : k === 1000 ? 3 : k === 0.1 ? 1 : 2;
+        return {
+          q: '<b>' + a + ' × ' + k + '</b> ＝ ?',
+          input: 'number', answer: ans, tolerance: 1e-9,
+          steps: (k >= 1
+            ? '乘 ' + k + '，小數點<b>向右移 ' + moves + ' 位</b>（不夠位就補 0）'
+            : '乘 ' + k + ' 就是變成原來的 ' + (k === 0.1 ? '十' : '百') + '分之一，小數點<b>向左移 ' + moves + ' 位</b>') +
+            '：' + a + ' → <b>' + ans + '</b><br>' +
+            '<span style="color:var(--muted)">乘比 1 小的數，答案會變小。</span>'
+        };
+      }
+
+      if (type === 'word') {
+        const ctx = Kit.pick([
+          { name: '蘋果', price: Kit.randInt(30, 90) + 0.5, qty: Kit.randInt(12, 48) / 10, uq: '公斤', uAns: '元', q: (p, n) => '蘋果 1 公斤 <b>' + p + '</b> 元，買 <b>' + n + '</b> 公斤要多少元？' },
+          { name: '緞帶', price: Kit.randInt(8, 30) + 0.5, qty: Kit.randInt(15, 65) / 10, uq: '公尺', uAns: '元', q: (p, n) => '緞帶每公尺 <b>' + p + '</b> 元，買 <b>' + n + '</b> 公尺要多少元？' },
+          { name: '飲料', price: Kit.randInt(25, 75) / 100, qty: Kit.randInt(3, 12), uq: '瓶', uAns: '公升', q: (p, n) => '一瓶飲料 <b>' + p + '</b> 公升，<b>' + n + '</b> 瓶總共幾公升？' },
+          { name: '走路', price: Kit.randInt(4, 8) / 100, qty: Kit.randInt(12, 45), uq: '分', uAns: '公里', q: (p, n) => '小明每分鐘走 <b>' + p + '</b> 公里，走 <b>' + n + '</b> 分鐘可以走幾公里？' }
+        ]);
+        const a = clean(ctx.price), b = clean(ctx.qty);
+        const da = decs(a), db = decs(b);
+        const ia = Math.round(a * Math.pow(10, da)), ib = Math.round(b * Math.pow(10, db));
+        const ans = clean(ia * ib / Math.pow(10, da + db));
+        return {
+          q: ctx.q(a, b),
+          input: 'number', answer: ans, tolerance: 1e-9, unit: ctx.uAns,
+          steps: '「每 1 ' + ctx.uq + '多少」× 「幾' + ctx.uq + '」→ 用<b>乘法</b>：' + a + ' × ' + b + '<br>' +
+            '先當整數算：' + ia + ' × ' + ib + ' ＝ ' + ia * ib + '<br>' +
+            '小數位數 ' + da + ' ＋ ' + db + ' ＝ ' + (da + db) + ' 位 → <b>' + ans + '</b> ' + ctx.uAns
+        };
+      }
+
+      if (type === 'estimate') {
+        const a = clean(Kit.randInt(21, 99) / 10), b = clean(Kit.randInt(21, 99) / 10);
+        const ra = Math.round(a), rb = Math.round(b), approx = ra * rb;
+        const exact = clean(Math.round(a * 10) * Math.round(b * 10) / 100);
+        const o = Kit.shuffle([
+          { t: String(approx), ok: true }, { t: String(approx * 10), ok: false },
+          { t: String(clean(approx / 10)), ok: false }, { t: String(approx * 100), ok: false }
+        ]);
+        return {
+          q: '<b>' + a + ' × ' + b + '</b> 大約是多少？（先估，不要精算）',
+          choices: o.map(x => x.t), answer: o.findIndex(x => x.ok),
+          steps: '把兩個數<b>各自四捨五入到整數</b>：' + a + ' ≈ ' + ra + '，' + b + ' ≈ ' + rb + '<br>' +
+            ra + ' × ' + rb + ' ＝ <b>' + approx + '</b>（實際是 ' + exact + '）<br>' +
+            '<span style="color:var(--muted)">估算是用來檢查小數點有沒有點錯位：答案差 10 倍就一定是點錯了。</span>'
+        };
+      }
+
+      if (type === 'relation') {
+        // x、y 不取 10 的倍數，否則 3.0 會顯示成 3，「有 1 位小數」的說明就對不上
+        let x, y;
+        do { x = Kit.randInt(12, 98); y = Kit.randInt(12, 98); } while (x % 10 === 0 || y % 10 === 0);
+        const P = x * y;
+        let p, q;
+        do { p = Kit.randInt(0, 2); q = Kit.randInt(0, 2); } while (p + q === 0);
+        const a = clean(x / Math.pow(10, p)), b = clean(y / Math.pow(10, q));
+        const ans = clean(P / Math.pow(10, p + q));
+        return {
+          q: '已知 <b>' + x + ' × ' + y + ' ＝ ' + P + '</b>，那 <b>' + a + ' × ' + b + '</b> ＝ ?',
+          input: 'number', answer: ans, tolerance: 1e-9,
+          steps: '數字一樣，只是小數點的位置不同，<b>不用重算</b>。<br>' +
+            a + ' 有 ' + p + ' 位小數，' + b + ' 有 ' + q + ' 位小數，相加 ' + (p + q) + ' 位。<br>' +
+            '把 ' + P + ' 從右邊數 ' + (p + q) + ' 位點上小數點 → <b>' + ans + '</b>'
+        };
+      }
+
+      if (type === 'area') {
+        // 面積模型（0.x 公尺 × 0.y 公尺，或一位小數公分）
+        const useM = Math.random() < .5;
+        const ia = useM ? Kit.randInt(2, 9) : Kit.randInt(21, 99), ib = useM ? Kit.randInt(2, 9) : Kit.randInt(21, 99);
+        const a = clean(ia / 10), b = clean(ib / 10);
+        const ans = clean(ia * ib / 100);
+        const u = useM ? '公尺' : '公分', u2 = useM ? '平方公尺' : '平方公分';
+        return {
+          q: '一張長方形紙，長 <b>' + a + '</b> ' + u + '、寬 <b>' + b + '</b> ' + u + '。面積是多少' + u2 + '？',
+          input: 'number', answer: ans, tolerance: 1e-9, unit: u2,
+          steps: '面積 ＝ 長 × 寬 ＝ ' + a + ' × ' + b + '<br>' +
+            '當整數算：' + ia + ' × ' + ib + ' ＝ ' + ia * ib + '，小數位數 1 ＋ 1 ＝ 2 位 → <b>' + ans + '</b> ' + u2 +
+            (useM ? '<br><span style="color:var(--muted)">' + a + ' 公尺是 1 公尺的 ' + ia + '/10，' + b + ' 公尺是 ' + ib + '/10，面積是 1 平方公尺切成 100 格中的 ' + ia * ib + ' 格。</span>' : '')
+        };
+      }
+
 
       if (type === 'mul') {
         const forms = [
@@ -515,7 +611,120 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['exact', 'exact', 'round', 'known']);
+      // 題型依均一「五下第六單元 整數、小數除以整數」小節：除數是二位數／平分應用題／
+      // 取概數的進一法與去尾法／小數的四捨五入／小數化分數／分數與小數比大小
+      const type = Kit.pick(['exact', 'exact', 'round', 'known', 'word', 'ceilfloor', 'dec2frac', 'compare', 'roundGeneric', 'twoDigit']);
+      const clean = v => parseFloat(v.toPrecision(12));
+
+      if (type === 'word') {
+        const n = Kit.pick([2, 4, 5, 8]);
+        // 讓答案一定除得盡：total ＝ n × 每份，每份是一位或兩位小數
+        const each = clean(Kit.randInt(11, 89) / (Math.random() < .5 ? 10 : 100));
+        const total = clean(each * n);
+        const ctx = Kit.pick([
+          { q: '<b>' + total + '</b> 公升的果汁平分裝到 <b>' + n + '</b> 個瓶子，每瓶幾公升？', u: '公升' },
+          { q: '一條 <b>' + total + '</b> 公尺的緞帶平分成 <b>' + n + '</b> 段，每段幾公尺？', u: '公尺' },
+          { q: '<b>' + total + '</b> 公斤的米平分成 <b>' + n + '</b> 袋，每袋幾公斤？', u: '公斤' }
+        ]);
+        return {
+          q: ctx.q,
+          input: 'number', answer: each, tolerance: 1e-9, unit: ctx.u,
+          steps: '「平分成幾份、每份多少」→ 用<b>除法</b>：' + total + ' ÷ ' + n + '<br>' +
+            '直式：商的小數點<b>對齊被除數的小數點</b>，除不完就在後面補 0 繼續除。<br>' +
+            total + ' ÷ ' + n + ' ＝ <b>' + each + '</b> ' + ctx.u + '（檢查：' + each + ' × ' + n + ' ＝ ' + total + '）'
+        };
+      }
+
+      if (type === 'ceilfloor') {
+        const b = Kit.pick([4, 6, 8, 12]);
+        const k = Kit.randInt(3, 12), r = Kit.randInt(1, b - 1);
+        const N = b * k + r;   // 一定除不盡，教學重點才在
+        if (Math.random() < .5) {
+          return {
+            q: '有 <b>' + N + '</b> 個蛋，每盒裝 <b>' + b + '</b> 個。全部裝完<b>至少</b>要幾個盒子？',
+            input: 'number', answer: k + 1, unit: '個',
+            steps: N + ' ÷ ' + b + ' ＝ ' + k + ' 餘 ' + r + '<br>' +
+              '剩下的 ' + r + ' 個蛋也要有盒子裝，所以再加 1 盒 → <b>' + (k + 1) + '</b> 個（<b>進一法</b>）<br>' +
+              '<span style="color:var(--muted)">⚠️ 這裡不能四捨五入：就算餘數很小，那幾個蛋也不能不裝。</span>'
+          };
+        }
+        return {
+          q: '一條 <b>' + N + '</b> 公分的緞帶，每 <b>' + b + '</b> 公分剪一段做蝴蝶結。<b>最多</b>可以做幾個？',
+          input: 'number', answer: k, unit: '個',
+          steps: N + ' ÷ ' + b + ' ＝ ' + k + ' 餘 ' + r + '<br>' +
+            '剩下的 ' + r + ' 公分不夠做一個，直接丟掉 → <b>' + k + '</b> 個（<b>去尾法</b>）<br>' +
+            '<span style="color:var(--muted)">「至少要幾個容器」用進一法；「最多能做幾個」用去尾法。</span>'
+        };
+      }
+
+      if (type === 'dec2frac') {
+        const table = [
+          [0.5, '1/2', ['1/5', '5/10', '2/5']], [0.25, '1/4', ['2/5', '1/25', '2/4']], [0.75, '3/4', ['7/5', '3/5', '7/10']],
+          [0.2, '1/5', ['1/2', '2/5', '1/20']], [0.4, '2/5', ['1/4', '4/5', '2/4']], [0.6, '3/5', ['6/5', '2/3', '3/50']],
+          [0.8, '4/5', ['1/8', '4/50', '8/100']], [0.125, '1/8', ['1/125', '12/5', '1/25']], [0.375, '3/8', ['3/75', '37/5', '3/5']],
+          [0.3, '3/10', ['1/3', '3/100', '3/1']], [0.05, '1/20', ['1/2', '5/10', '1/5']]
+        ];
+        const it = Kit.pick(table);
+        // 「不是最簡」的錯誤選項（如 5/10、2/4、8/100）值和正解一樣，題目問的是最簡分數，所以保留它當陷阱
+        const o = Kit.shuffle([{ t: it[1], ok: true }].concat(it[2].map(t => ({ t: t, ok: false }))));
+        const d = it[1].split('/')[1];
+        const digits = (String(it[0]).split('.')[1] || '').length;
+        const den10 = Math.pow(10, digits), num10 = Math.round(it[0] * den10);
+        return {
+          q: '<b>' + it[0] + '</b> 寫成<b>最簡分數</b>是多少？',
+          choices: o.map(x => x.t), answer: o.findIndex(x => x.ok),
+          steps: it[0] + ' 有 ' + digits + ' 位小數 → 分母是 ' + den10 + '：' + it[0] + ' ＝ ' + num10 + '/' + den10 + '<br>' +
+            (num10 + '/' + den10 === it[1] ? '已經是最簡分數。' : '約分（同除以 ' + (den10 / d) + '）→ <b>' + it[1] + '</b>') +
+            '<br><span style="color:var(--muted)">記住 1/2、1/4、3/4、1/5、1/8 這幾個常用的，換來換去會快很多。</span>'
+        };
+      }
+
+      if (type === 'compare') {
+        const fr = Kit.pick([['1/2', 0.5], ['1/4', 0.25], ['3/4', 0.75], ['1/5', 0.2], ['2/5', 0.4], ['3/5', 0.6], ['4/5', 0.8], ['1/8', 0.125], ['3/8', 0.375], ['5/8', 0.625], ['7/8', 0.875]]);
+        const equal = Math.random() < .25;
+        const dec = equal ? fr[1] : clean(fr[1] + Kit.pick([-0.1, -0.05, 0.05, 0.1]));
+        const opts = [fr[0] + ' 比較大', dec + ' 比較大', '一樣大'];
+        const ans = equal ? 2 : fr[1] > dec ? 0 : 1;
+        return {
+          q: '<b>' + fr[0] + '</b> 和 <b>' + dec + '</b>，哪一個比較大？',
+          choices: opts, answer: ans,
+          steps: '分數和小數要比，先<b>換成同一種</b>：' + fr[0] + ' ＝ ' + fr[0].replace('/', ' ÷ ') + ' ＝ <b>' + fr[1] + '</b><br>' +
+            (equal ? fr[1] + ' ＝ ' + dec + '，<b>一樣大</b>。' : fr[1] + (fr[1] > dec ? ' > ' : ' < ') + dec + '，所以 <b>' + (ans === 0 ? fr[0] : dec) + '</b> 比較大。')
+        };
+      }
+
+      if (type === 'roundGeneric') {
+        const iv = Kit.randInt(1000, 9999);            // 三位小數 1.000～9.999
+        const k = Kit.pick([1, 2]);
+        const v = clean(iv / 1000);
+        const scale = Math.pow(10, 3 - k);
+        const ans = Math.round(iv / scale) / Math.pow(10, k);
+        const lookDigit = Math.floor(iv / Math.pow(10, 2 - k)) % 10;   // 第 k+1 位小數
+        return {
+          q: '把 <b>' + v + '</b> 四捨五入到<b>小數第 ' + k + ' 位</b>是多少？',
+          input: 'number', answer: clean(ans), tolerance: 1e-9,
+          steps: '要留到第 ' + k + ' 位，就看<b>第 ' + (k + 1) + ' 位</b>：是 <b>' + lookDigit + '</b>，' +
+            (lookDigit >= 5 ? '≥ 5 → 進位' : '< 5 → 捨去') + '<br>' +
+            v + ' ≈ <b>' + clean(ans).toFixed(k) + '</b>' +
+            (String(clean(ans)).length < clean(ans).toFixed(k).length ? '（寫成 ' + clean(ans).toFixed(k) + ' 或 ' + clean(ans) + ' 都對）' : '')
+        };
+      }
+
+      if (type === 'twoDigit') {
+        const b = Kit.pick([16, 25, 40, 80]);
+        let a;
+        do { a = Kit.randInt(2, 99); } while (a % b === 0);
+        const ans = clean(a / b);
+        const whole = Math.floor(a / b), rem = a % b;
+        return {
+          q: '<b>' + a + ' ÷ ' + b + '</b> ＝ ?（除數是二位數，一樣可以除到盡）',
+          input: 'number', answer: ans, tolerance: 1e-9,
+          steps: (whole ? a + ' ÷ ' + b + ' ＝ ' + whole + ' 餘 ' + rem + '，' : a + ' 比 ' + b + ' 小，商的整數部分是 0，') +
+            '在被除數後面<b>補 0 繼續除</b>，商從小數第一位開始寫：<br>' +
+            a + ' ÷ ' + b + ' ＝ <b>' + ans + '</b>（檢查：' + ans + ' × ' + b + ' ＝ ' + a + '）'
+        };
+      }
+
 
       if (type === 'exact') {
         const b = Kit.pick([2, 4, 5, 8, 10, 20, 25]);

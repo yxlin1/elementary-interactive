@@ -345,7 +345,129 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['tofrac', 'tomin', 'multiply', 'work']);
+      // 題型依均一「五上第九單元 時間的乘除」9-1～9-3：日時分秒換算／時分、分秒的乘法／
+      // 等分除與包含除／小數時／時間的應用
+      const type = Kit.pick(['tofrac', 'tomin', 'multiply', 'work', 'hmMul', 'hmDiv', 'containDiv', 'dayHr', 'msMul', 'decHr']);
+      function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+      const hm = min => Math.floor(min / 60) + ' 小時' + (min % 60 ? ' ' + (min % 60) + ' 分' : '');
+      const ms = sec => Math.floor(sec / 60) + ' 分' + (sec % 60 ? ' ' + (sec % 60) + ' 秒' : '');
+      const dh = hrs => Math.floor(hrs / 24) + ' 日' + (hrs % 24 ? ' ' + (hrs % 24) + ' 小時' : '');
+      // 依「字面」去重就夠了，因為格式固定
+      function uniq(items) { const seen = {}; return items.filter(x => { if (seen[x.t]) return false; seen[x.t] = 1; return true; }); }
+
+      if (type === 'hmMul') {
+        const h = Kit.randInt(1, 2), m = Kit.pick([15, 20, 25, 30, 35, 40, 45, 50]), k = Kit.randInt(2, 4);
+        const total = (h * 60 + m) * k;
+        const o = shuffled(uniq([
+          { t: hm(total), ok: true },
+          { t: (h * k) + ' 小時 ' + (m * k) + ' 分' },              // 分沒進位
+          { t: hm(total - 60) },                                       // 少進一次位
+          { t: Math.floor((h * 100 + m) * k / 100) + ' 小時 ' + ((h * 100 + m) * k % 100) + ' 分' }   // 當成十進位
+        ]));
+        return {
+          q: '一場電影 <b>' + h + ' 小時 ' + m + ' 分</b>，連看 <b>' + k + '</b> 場總共多久？',
+          choices: o.choices, answer: o.answer,
+          steps: '分開乘：' + h + ' 小時 × ' + k + ' ＝ ' + h * k + ' 小時；' + m + ' 分 × ' + k + ' ＝ ' + m * k + ' 分<br>' +
+            (m * k >= 60 ? m * k + ' 分滿 60 要<b>進位</b>：' + m * k + ' 分 ＝ ' + Math.floor(m * k / 60) + ' 小時 ' + (m * k % 60) + ' 分<br>' : '') +
+            '合起來 <b>' + hm(total) + '</b>（也可以全換成分：' + (h * 60 + m) + ' × ' + k + ' ＝ ' + total + ' 分）'
+        };
+      }
+
+      if (type === 'hmDiv') {
+        const k = Kit.randInt(2, 5), each = Kit.pick([25, 35, 40, 45, 50, 55, 70, 80]);
+        const total = each * k;
+        return {
+          q: '<b>' + hm(total) + '</b> 平均分成 <b>' + k + '</b> 段，每段是幾分鐘？（只填分鐘數）',
+          input: 'number', answer: each, unit: '分',
+          steps: '先把時間<b>全部換成分</b>：' + hm(total) + ' ＝ ' + Math.floor(total / 60) + ' × 60 ＋ ' + (total % 60) + ' ＝ ' + total + ' 分<br>' +
+            total + ' ÷ ' + k + ' ＝ <b>' + each + '</b> 分' + (each >= 60 ? '（＝ ' + hm(each) + '）' : '') + '<br>' +
+            '<span style="color:var(--muted)">「平分成幾份」是等分除。</span>'
+        };
+      }
+
+      if (type === 'containDiv') {
+        const songSec = Kit.pick([150, 180, 200, 210, 240, 270]);   // 一首歌的秒數
+        const totalMin = Kit.pick([15, 20, 25, 30]);
+        const cnt = Math.floor(totalMin * 60 / songSec), rem = totalMin * 60 % songSec;
+        return {
+          q: '一首歌長 <b>' + ms(songSec) + '</b>。<b>' + totalMin + ' 分鐘</b>的休息時間最多可以完整聽幾首？',
+          input: 'number', answer: cnt, unit: '首',
+          steps: '單位先統一成<b>秒</b>：' + totalMin + ' 分 ＝ ' + totalMin * 60 + ' 秒，一首歌 ' + ms(songSec) + ' ＝ ' + songSec + ' 秒<br>' +
+            totalMin * 60 + ' ÷ ' + songSec + ' ＝ ' + cnt + (rem ? ' 餘 ' + rem : '') + ' → 完整聽 <b>' + cnt + '</b> 首' + (rem ? '（剩 ' + rem + ' 秒不夠一首）' : '') + '<br>' +
+            '<span style="color:var(--muted)">「總量裡有幾個一份」是包含除。</span>'
+        };
+      }
+
+      if (type === 'dayHr') {
+        if (Math.random() < .5) {
+          const d = Kit.randInt(1, 3), h = Kit.pick([0, 6, 8, 12, 18]);
+          return {
+            q: '<b>' + d + ' 日 ' + h + ' 小時</b>是幾小時？',
+            input: 'number', answer: d * 24 + h, unit: '小時',
+            steps: '1 日 ＝ <b>24</b> 小時：' + d + ' × 24 ＝ ' + d * 24 + '，再加 ' + h + ' → <b>' + (d * 24 + h) + '</b> 小時<br>' +
+              '<span style="color:var(--muted)">⚠️ 日→時是 24 進位，不是 60 也不是 100。</span>'
+          };
+        }
+        const hrs = Kit.pick([36, 48, 60, 72, 96, 100, 120]);
+        const o = shuffled(uniq([
+          { t: dh(hrs), ok: true },
+          { t: Math.floor(hrs / 60) + ' 日 ' + (hrs % 60) + ' 小時' },
+          { t: Math.floor(hrs / 12) + ' 日' + (hrs % 12 ? ' ' + (hrs % 12) + ' 小時' : '') },
+          { t: dh(hrs + 24) }
+        ]));
+        return {
+          q: '<b>' + hrs + ' 小時</b>是幾日幾小時？',
+          choices: o.choices, answer: o.answer,
+          steps: hrs + ' ÷ 24 ＝ ' + Math.floor(hrs / 24) + (hrs % 24 ? ' 餘 ' + (hrs % 24) : '') + ' → <b>' + dh(hrs) + '</b>'
+        };
+      }
+
+      if (type === 'msMul') {
+        const m = Kit.randInt(1, 4), sec = Kit.pick([15, 20, 30, 40, 45, 50]), k = Kit.randInt(2, 5);
+        const total = (m * 60 + sec) * k;
+        const o = shuffled(uniq([
+          { t: ms(total), ok: true },
+          { t: (m * k) + ' 分 ' + (sec * k) + ' 秒' },
+          { t: ms(total - 60) },
+          { t: ms(total + 60) }
+        ]));
+        return {
+          q: '跑操場一圈要 <b>' + ms(m * 60 + sec) + '</b>，跑 <b>' + k + '</b> 圈共要多久？',
+          choices: o.choices, answer: o.answer,
+          steps: m + ' 分 × ' + k + ' ＝ ' + m * k + ' 分；' + sec + ' 秒 × ' + k + ' ＝ ' + sec * k + ' 秒' +
+            (sec * k >= 60 ? '，滿 60 秒進位 ＝ ' + Math.floor(sec * k / 60) + ' 分 ' + (sec * k % 60) + ' 秒' : '') + '<br>' +
+            '合起來 <b>' + ms(total) + '</b>'
+        };
+      }
+
+      if (type === 'decHr') {
+        // 小數時 ⇄ 分
+        if (Math.random() < .5) {
+          const mins = Kit.pick([90, 150, 30, 45, 75, 135, 210, 6, 12]);
+          const dec = parseFloat((mins / 60).toPrecision(12));
+          return {
+            q: '<b>' + mins + ' 分</b>是幾小時？（用小數表示）',
+            input: 'number', answer: dec, tolerance: 1e-9, unit: '小時',
+            steps: '分→時要 <b>÷ 60</b>：' + mins + ' ÷ 60 ＝ <b>' + dec + '</b> 小時<br>' +
+              '<span style="color:var(--muted)">⚠️ ' + mins + ' 分不是 ' + (mins / 100) + ' 小時；時間是 60 進位。</span>'
+          };
+        }
+        const dv = Kit.pick([1.25, 1.75, 2.5, 0.75, 3.25, 1.1, 2.2]);
+        const tm = Math.round(dv * 60);
+        const o = shuffled(uniq([
+          { t: hm(tm), ok: true },
+          { t: Math.floor(dv) + ' 小時 ' + Math.round((dv % 1) * 100) + ' 分' },     // 小數當成分
+          { t: hm(tm + 15) }, { t: hm(tm - 15) }
+        ]));
+        return {
+          q: '<b>' + dv + ' 小時</b>是幾小時幾分？',
+          choices: o.choices, answer: o.answer,
+          steps: '小數部分 ' + parseFloat((dv % 1).toPrecision(12)) + ' 小時 × 60 ＝ ' + Math.round((dv % 1) * 60) + ' 分<br>' +
+            '所以 ' + dv + ' 小時 ＝ <b>' + hm(tm) + '</b><br>' +
+            '<span style="color:var(--muted)">⚠️ ' + dv + ' 小時不是 ' + Math.floor(dv) + ' 小時 ' + Math.round((dv % 1) * 100) + ' 分。</span>'
+        };
+      }
+
 
       if (type === 'tofrac') {
         const m = Kit.pick([5, 10, 12, 15, 20, 24, 30, 36, 40, 45, 48, 50]);

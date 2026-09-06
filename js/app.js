@@ -173,14 +173,19 @@
       const quizzes = defs.map(d => d.quiz).filter(Boolean);
       if (quizzes.length) {
         const q = el('div', { class: 'card quiz' });
-        q.appendChild(el('h3', {}, [el('span', { class: 'ico', text: '✏️' }), el('span', { text: '練習題（即時對錯 + 解題步驟）' })]));
+        q.appendChild(el('h3', {}, [
+          el('span', { class: 'ico', text: '✏️' }), el('span', { text: '練習題（即時對錯 + 解題步驟）' }),
+          // 進練習區：同一章的題目，但畫面上只剩題目
+          el('button', { class: 'btn small h3-act', type: 'button', text: '⛶ 專心練習', title: '進入練習區，只顯示題目', onClick: () => go('practice/' + id) })
+        ]));
         const qHost = el('div');
         q.appendChild(qHost);
         inner.appendChild(q);
         const makeQ = quizzes.length === 1 ? quizzes[0]
           : function () { return quizzes[Math.floor(Math.random() * quizzes.length)](); };
         // 教具先掛上再跑練習，確保 DOM 已有寬度
-        setTimeout(() => Kit.practice(qHost, makeQ, defs[0].quizCount || 5), 0);
+        // key 用來存「本章最佳紀錄」與累計題數，讓孩子看得到自己的進步
+        setTimeout(() => Kit.practice(qHost, makeQ, defs[0].quizCount || 5, { key: id }), 0);
       }
 
       contentEl.innerHTML = '';
@@ -205,6 +210,158 @@
     }
 
     contentEl.scrollTop = 0;
+  }
+
+  /* ---------------- 練習區 ----------------
+     #practice            挑單元（每冊一張卡，附「整冊混合」）
+     #practice/<章節id>    該章的題目，畫面上只有題目
+     #practice/mix-<冊前綴> 整冊所有已建置單元隨機混合（例：mix-n5a）
+     進入時 body 掛 practice-mode，側欄與 ☰ 都藏起來，讓孩子專心。 */
+  function implChapters(prefix) {
+    const out = [];
+    VISIBLE.forEach(g => g.books.forEach(b => b.chapters.forEach(c => {
+      // CHAPTER_INDEX 裡的物件多了 grade／subject／term，標題要用
+      if (c.impl && (!prefix || c.id.indexOf(prefix + '-') === 0)) out.push(CHAPTER_INDEX[c.id] || c);
+    })));
+    return out;
+  }
+  function defsFor(chapterIds) {
+    return chapterIds.reduce((acc, cid) => {
+      const c = CHAPTER_INDEX[cid];
+      const aidIds = c.use ? (Array.isArray(c.use) ? c.use : [c.use]) : [cid];
+      return acc.concat(aidIds.map(a => Kit.get(a)).filter(Boolean));
+    }, []);
+  }
+  function navBtn(text, target, cls) {
+    return el('button', { class: 'btn ' + (cls || ''), type: 'button', text: text, onClick: () => go(target) });
+  }
+
+  function renderPractice(arg) {
+    const inner = el('div', { class: 'inner practice' });
+    const top = el('div', { class: 'practice-top' });
+    inner.appendChild(top);
+
+    if (!arg) {
+      top.appendChild(navBtn('← 回首頁', ''));
+      top.appendChild(el('h2', { text: '✏️ 練習區' }));
+      inner.appendChild(el('p', { class: 'lead', text: '挑一個單元，或整冊混合出題。這裡只有題目，沒有教具和說明，適合孩子自己練。' }));
+      const stats = Kit.quizStats();
+      VISIBLE.forEach(g => g.books.forEach(b => {
+        const chs = b.chapters.filter(c => c.impl);
+        if (!chs.length) return;
+        const prefix = chs[0].id.split('-')[0];
+        const card = el('div', { class: 'card' });
+        card.appendChild(el('h3', {}, [
+          el('span', { class: 'tag ' + (b.subject === '數學' ? 'math' : 'sci'), text: b.subject }),
+          el('span', { text: g.grade + ' ' + b.term + '（' + b.publisher + '版）' })
+        ]));
+        const chips = el('div', { class: 'chips' });
+        chs.forEach(c => {
+          const st = stats[c.id];
+          const chip = el('button', { class: 'chip', type: 'button', onClick: () => go('practice/' + c.id) }, [
+            el('span', { class: 'n', text: c.no + '.' }), el('span', { text: c.title })
+          ]);
+          if (st && st.total) {
+            const best = st.best ? Object.keys(st.best).sort((x, y) => x - y).map(k => st.best[k] + '/' + k) : [];
+            chip.appendChild(el('span', { class: 'chip-stat', text: '練過 ' + st.total + ' 題' + (best.length ? '　最佳 ' + best.join('、') : '') }));
+          }
+          chips.appendChild(chip);
+        });
+        const mixSt = stats['mix-' + prefix];
+        const mix = el('button', { class: 'chip mix', type: 'button', onClick: () => go('practice/mix-' + prefix) }, [
+          el('span', { text: '🎲 整冊混合出題（' + chs.length + ' 個單元）' })
+        ]);
+        if (mixSt && mixSt.total) mix.appendChild(el('span', { class: 'chip-stat', text: '練過 ' + mixSt.total + ' 題' }));
+        chips.appendChild(mix);
+        card.appendChild(chips);
+        inner.appendChild(card);
+      }));
+      inner.appendChild(renderProgressCard());
+      contentEl.innerHTML = '';
+      contentEl.appendChild(inner);
+      contentEl.scrollTop = 0;
+      return;
+    }
+
+    let title, chapters, backId = '';
+    if (arg.indexOf('mix-') === 0) {
+      chapters = implChapters(arg.slice(4));
+      if (!chapters.length) { go('practice'); return; }
+      const c0 = chapters[0];
+      title = c0.grade + c0.subject + '（' + c0.term + '）整冊混合';
+    } else {
+      const c = CHAPTER_INDEX[arg];
+      if (!c || !c.impl) { go('practice'); return; }
+      chapters = [c];
+      title = c.title;
+      backId = c.id;
+    }
+    const quizzes = defsFor(chapters.map(c => c.id)).map(d => d.quiz).filter(Boolean);
+    if (!quizzes.length) { go('practice'); return; }
+
+    top.appendChild(navBtn('← 練習區', 'practice'));
+    if (backId) top.appendChild(navBtn('🎛 看這一章的教具', backId));
+    top.appendChild(navBtn('⌂ 首頁', ''));
+    inner.appendChild(el('div', { class: 'crumb', text: '專心練習' }));
+    inner.appendChild(el('h2', { class: 'title', text: title }));
+    if (chapters.length > 1) {
+      inner.appendChild(el('p', { class: 'hint', text: '每一題隨機來自：' + chapters.map(c => c.no + '.' + c.title).join('、') }));
+    }
+    const q = el('div', { class: 'card quiz focus' });
+    const qHost = el('div');
+    q.appendChild(qHost);
+    inner.appendChild(q);
+    const makeQ = quizzes.length === 1 ? quizzes[0]
+      : function () { return quizzes[Math.floor(Math.random() * quizzes.length)](); };
+    contentEl.innerHTML = '';
+    contentEl.appendChild(inner);
+    contentEl.scrollTop = 0;
+    // 紀錄和章節頁共用同一個 key，兩邊練的成績會合在一起
+    Kit.practice(qHost, makeQ, 5, { key: arg, scope: chapters.length > 1 ? '整冊' : '本章' });
+  }
+
+  /* 進度備份：成績只存在這台瀏覽器的 localStorage。要換裝置或怕清掉，用進度碼搬過去。 */
+  function renderProgressCard() {
+    const stats = Kit.quizStats();
+    const keys = Object.keys(stats);
+    const total = keys.reduce((a, k) => a + (stats[k].total || 0), 0);
+    const card = el('div', { class: 'card progress' });
+    card.appendChild(el('h3', {}, [el('span', { class: 'ico', text: '📦' }), el('span', { text: '進度備份／搬到另一台裝置' })]));
+    card.appendChild(el('p', { class: 'src-note', html:
+      '成績只存在<b>這台瀏覽器</b>裡（目前 ' + keys.length + ' 個單元、' + total + ' 題），不會上傳。' +
+      '換手機或電腦時，在這裡產生進度碼，貼到另一台的「匯入」就會<b>合併</b>過去（最佳成績取高的、題數相加）。' }));
+    const msg = el('div', { class: 'pr-fb' });
+    const ta = el('textarea', { class: 'progress-code', rows: '3', placeholder: '按「產生進度碼」後這裡會出現一段文字；或把另一台裝置的進度碼貼到這裡再按「匯入」', spellcheck: 'false' });
+    const row = el('div', { class: 'pr-actions' });
+    const genBtn = Kit.button('產生進度碼', () => {
+      ta.value = Kit.exportProgress();
+      ta.focus(); ta.select();
+      msg.className = 'pr-fb ok'; msg.textContent = '已產生。全選複製，傳給另一台裝置（LINE、email 都可以）。';
+    }, 'primary');
+    const copyBtn = Kit.button('複製', () => {
+      if (!ta.value) { msg.className = 'pr-fb no'; msg.textContent = '先按「產生進度碼」。'; return; }
+      ta.focus(); ta.select();
+      const done = () => { msg.className = 'pr-fb ok'; msg.textContent = '已複製到剪貼簿。'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, () => { document.execCommand('copy'); done(); });
+      else { document.execCommand('copy'); done(); }
+    });
+    const impBtn = Kit.button('匯入並合併', () => {
+      try {
+        const r = Kit.importProgress(ta.value);
+        msg.className = 'pr-fb ok';
+        msg.textContent = '已合併 ' + r.chapters + ' 個單元、' + r.questions + ' 題的紀錄' + (r.date ? '（' + r.date + ' 匯出）' : '') + '。';
+        setTimeout(() => go('practice'), 900);   // 重畫，chips 上的紀錄才會更新
+      } catch (e) { msg.className = 'pr-fb no'; msg.textContent = '匯入失敗：' + e.message; }
+    });
+    const clearBtn = Kit.button('清除這台的紀錄', () => {
+      if (!keys.length) { msg.className = 'pr-fb no'; msg.textContent = '這台目前沒有紀錄。'; return; }
+      if (!window.confirm('確定要清除這台瀏覽器裡全部 ' + keys.length + ' 個單元的練習紀錄？（建議先產生進度碼備份）')) return;
+      Kit.clearProgress();
+      go('practice');
+    });
+    row.appendChild(genBtn); row.appendChild(copyBtn); row.appendChild(impBtn); row.appendChild(clearBtn);
+    card.appendChild(ta); card.appendChild(row); card.appendChild(msg);
+    return card;
   }
 
   /* ---------------- 首頁 ---------------- */
@@ -244,7 +401,6 @@
       '<div class="stat"><div class="n">' + total + '</div><div class="l">總章節數</div></div>' +
       '<div class="stat"><div class="n">' + done + '</div><div class="l">已完成互動教具</div></div>' +
       '<div class="stat"><div class="n">' + stdCount + '</div><div class="l">掛載的課綱條目</div></div>' +
-      '<div class="stat"><div class="n">離線</div><div class="l">不需網路即可使用</div></div>' +
       '</div>' +
 
       '<div class="card"><h3><span class="ico">📚</span><span>版本依據</span></h3>' +
@@ -296,10 +452,14 @@
     activeId = id;
     location.hash = id ? '#' + id : '';
     document.body.classList.remove('nav-open');
-    if (id) renderChapter(id); else renderHome();
-    // 更新選取狀態，不重建整棵樹以保留展開狀態
+    const isPractice = !!id && id.indexOf('practice') === 0;
+    document.body.classList.toggle('practice-mode', isPractice);
+    if (isPractice) renderPractice(id.replace(/^practice\/?/, ''));
+    else if (id) renderChapter(id); else renderHome();
+    // 更新選取狀態，不重建整棵樹以保留展開狀態（練習某一章時也把那一章亮起來）
+    const hl = isPractice ? id.replace(/^practice\/?/, '') : id;
     Array.prototype.forEach.call(treeEl.querySelectorAll('.ch'), n => {
-      n.classList.toggle('active', n.getAttribute('data-id') === id);
+      n.classList.toggle('active', n.getAttribute('data-id') === hl);
     });
     const openBook = treeEl.querySelector('.ch.active');
     if (openBook) {
@@ -315,16 +475,38 @@
 
   searchEl.addEventListener('input', () => buildTree(searchEl.value));
 
-  document.getElementById('menuToggle').addEventListener('click', () => {
-    document.body.classList.toggle('nav-open');
+  /* ---------------- 側欄開關 ----------------
+     桌機（>860px）：側欄可以收起來，狀態記在 localStorage，下次開啟沿用。
+     手機／平板：維持原本的 ☰ 抽屜，點外面就關。同一顆 ☰ 依畫面寬度決定做哪件事。 */
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebarEl = document.querySelector('.sidebar');
+  const desktopMQ = window.matchMedia('(min-width: 861px)');
+  // 3D 畫布只聽 window 的 resize 事件重量寬度；側欄收合並不會觸發它，所以自己補發一次
+  function pokeResize() { window.dispatchEvent(new Event('resize')); }
+  function setCollapsed(on) {
+    document.body.classList.toggle('nav-collapsed', on);
+    menuToggle.setAttribute('aria-expanded', String(!on));
+    try { localStorage.setItem('nav-collapsed', on ? '1' : '0'); } catch (e) { /* 私密模式等情況忽略 */ }
+    // transitionend 是主要訊號；瀏覽器若跳過動畫就不會發，所以另外用計時器墊底
+    setTimeout(pokeResize, 280);
+  }
+  sidebarEl.addEventListener('transitionend', e => { if (e.propertyName === 'margin-left') pokeResize(); });
+  menuToggle.setAttribute('aria-expanded', String(!document.body.classList.contains('nav-collapsed')));
+
+  menuToggle.addEventListener('click', () => {
+    if (desktopMQ.matches) setCollapsed(!document.body.classList.contains('nav-collapsed'));
+    else document.body.classList.toggle('nav-open');
   });
+  document.getElementById('sbCollapse').addEventListener('click', () => setCollapsed(true));
   document.getElementById('scrim').addEventListener('click', () => {
     document.body.classList.remove('nav-open');
   });
   document.getElementById('homeLink').addEventListener('click', e => { e.preventDefault(); go(''); });
+  document.getElementById('practiceLink').addEventListener('click', () => go('practice'));
+  document.getElementById('appVersion').textContent = 'v' + (typeof APP_VERSION === 'string' ? APP_VERSION : '?');
 
   /* ---------------- 啟動 ---------------- */
   activeId = location.hash.replace('#', '') || null;
   buildTree('');
-  if (activeId && CHAPTER_INDEX[activeId]) go(activeId); else renderHome();
+  if (activeId && (CHAPTER_INDEX[activeId] || activeId.indexOf('practice') === 0)) go(activeId); else renderHome();
 })();

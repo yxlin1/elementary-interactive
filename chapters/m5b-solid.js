@@ -404,7 +404,96 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['sa', 'sa', 'cube', 'open', 'compare']);
+      // 題型依均一「五上第十單元 正方體和長方體」10-1～10-5：構成要素／面與面的平行垂直／
+      // 展開圖／用三個不同面的面積求表面積／由表面積反推／邊長總和
+      const type = Kit.pick(['sa', 'sa', 'cube', 'open', 'compare', 'elements', 'faces3', 'cubeFromSA', 'edgeSum', 'net', 'relation']);
+      function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+
+      if (type === 'elements') {
+        const it = Kit.pick([
+          { q: '一個長方體有幾個<b>面</b>？', a: 6, why: '上、下、前、後、左、右，共 <b>6</b> 個面，兩兩相對一樣大。' },
+          { q: '一個長方體有幾條<b>邊</b>？', a: 12, why: '上面 4 條、下面 4 條、直立的 4 條，共 <b>12</b> 條邊。每 4 條一組一樣長，有 3 組（長、寬、高）。' },
+          { q: '一個長方體有幾個<b>頂點</b>？', a: 8, why: '上面 4 個角、下面 4 個角，共 <b>8</b> 個頂點。' },
+          { q: '一個正方體有幾條<b>一樣長</b>的邊？', a: 12, why: '正方體 12 條邊<b>全部</b>一樣長（長方體只有每 4 條一組一樣長）。' }
+        ]);
+        return { q: it.q, input: 'number', answer: it.a, unit: it.a === 12 ? '條' : '個', steps: it.why + '<br><span style="color:var(--muted)">拿一個盒子數一數，或看上面教具的展開圖。</span>' };
+      }
+
+      if (type === 'faces3') {
+        // 原本的 a、b、c 在後面才宣告，這裡自己抽
+        const x = Kit.randInt(2, 12), y = Kit.randInt(2, 12), z = Kit.randInt(2, 12);
+        const A = x * y, B = x * z, C = y * z;
+        return {
+          q: '一個長方體，三個<b>不同的面</b>面積分別是 <b>' + A + '</b>、<b>' + B + '</b>、<b>' + C + '</b> 平方公分。表面積是多少平方公分？',
+          input: 'number', answer: 2 * (A + B + C), unit: '平方公分',
+          steps: '長方體的 6 個面<b>兩兩一樣大</b>，三個不同的面各有兩片：<br>' +
+            '(' + A + ' ＋ ' + B + ' ＋ ' + C + ') × 2 ＝ ' + (A + B + C) + ' × 2 ＝ <b>' + 2 * (A + B + C) + '</b> 平方公分<br>' +
+            '<span style="color:var(--muted)">不需要知道長寬高各是多少。</span>'
+        };
+      }
+
+      if (type === 'cubeFromSA') {
+        const s2 = Kit.randInt(2, 10), SA = 6 * s2 * s2;
+        if (Math.random() < .5) {
+          return {
+            q: '一個正方體的表面積是 <b>' + SA + '</b> 平方公分。它<b>一個面</b>的面積是多少平方公分？',
+            input: 'number', answer: s2 * s2, unit: '平方公分',
+            steps: '正方體 6 個面一樣大 → 一面 ＝ 表面積 ÷ 6 ＝ ' + SA + ' ÷ 6 ＝ <b>' + s2 * s2 + '</b> 平方公分'
+          };
+        }
+        return {
+          q: '一個正方體的表面積是 <b>' + SA + '</b> 平方公分。它的<b>邊長</b>是幾公分？',
+          input: 'number', answer: s2, unit: '公分',
+          steps: '① 一面 ＝ ' + SA + ' ÷ 6 ＝ ' + s2 * s2 + ' 平方公分<br>' +
+            '② 哪個數自己乘自己是 ' + s2 * s2 + '？ ' + s2 + ' × ' + s2 + ' ＝ ' + s2 * s2 + ' → 邊長 <b>' + s2 + '</b> 公分'
+        };
+      }
+
+      if (type === 'edgeSum') {
+        const a = Kit.randInt(2, 12), b = Kit.randInt(2, 12), c = Kit.randInt(2, 12);
+        if (Math.random() < .5) {
+          return {
+            q: '一個長方體，長 <b>' + a + '</b>、寬 <b>' + b + '</b>、高 <b>' + c + '</b> 公分。用鐵絲做它的骨架（12 條邊），至少需要幾公分的鐵絲？',
+            input: 'number', answer: 4 * (a + b + c), unit: '公分',
+            steps: '長、寬、高各有 <b>4</b> 條：<br>(' + a + ' ＋ ' + b + ' ＋ ' + c + ') × 4 ＝ ' + (a + b + c) + ' × 4 ＝ <b>' + 4 * (a + b + c) + '</b> 公分<br>' +
+              '<span style="color:var(--muted)">這是「邊長總和」，和表面積、體積是三件不同的事。</span>'
+          };
+        }
+        const s3 = Kit.randInt(2, 12);
+        return {
+          q: '一個正方體的邊長 <b>' + s3 + '</b> 公分。12 條邊的長度總和是多少？',
+          input: 'number', answer: 12 * s3, unit: '公分',
+          steps: '12 條邊全部一樣長：' + s3 + ' × 12 ＝ <b>' + 12 * s3 + '</b> 公分'
+        };
+      }
+
+      if (type === 'net') {
+        const it = Kit.pick([
+          { q: '正方體的展開圖是由幾個<b>正方形</b>組成的？', a: 6, why: '展開圖就是把 6 個面攤平，所以有 <b>6</b> 個一樣大的正方形。' },
+          { q: '長方體的展開圖中，一樣大的面有幾<b>組</b>？', a: 3, why: '上下、前後、左右各一組，共 <b>3</b> 組，每組 2 個。' },
+          { q: '把長方體展開圖<b>全部</b>面積加起來，等於這個長方體的什麼？', choices: ['表面積', '體積', '底面積', '邊長總和'], a: 0, why: '展開圖就是 6 個面攤開來，加總就是<b>表面積</b>。體積是裡面裝了多少，展開圖看不出來。' }
+        ]);
+        if (it.choices) {
+          const o = shuffled(it.choices.map((t, i) => ({ t: t, ok: i === it.a })));
+          return { q: it.q, choices: o.choices, answer: o.answer, steps: it.why };
+        }
+        return { q: it.q, input: 'number', answer: it.a, unit: it.a === 3 ? '組' : '個', steps: it.why };
+      }
+
+      if (type === 'relation') {
+        // 面與面的平行、垂直
+        const it2 = Kit.pick([
+          { q: '長方體中，和<b>上面</b>平行的面是哪一個？', choices: ['下面', '前面', '左面', '沒有'], a: 0, why: '相對的兩個面互相<b>平行</b>：上↔下、前↔後、左↔右。所以和上面平行的是<b>下面</b>。' },
+          { q: '長方體中，和<b>前面</b>垂直的面有幾個？', num: 4, why: '除了它自己和對面（後面）以外，其餘 <b>4</b> 個面（上、下、左、右）都和前面<b>垂直</b>。' },
+          { q: '長方體中，和<b>底面</b>平行的面有幾個？', num: 1, why: '只有正對面的<b>上面</b>和底面平行，共 <b>1</b> 個。其他 4 個面都和底面垂直。' }
+        ]);
+        if (it2.choices) {
+          const o = shuffled(it2.choices.map((t, i) => ({ t: t, ok: i === it2.a })));
+          return { q: it2.q, choices: o.choices, answer: o.answer, steps: it2.why };
+        }
+        return { q: it2.q, input: 'number', answer: it2.num, unit: '個', steps: it2.why };
+      }
+
       const a = Kit.randInt(2, 12), b = Kit.randInt(2, 12), c = Kit.randInt(2, 12);
 
       if (type === 'sa') {

@@ -7,8 +7,13 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<script>
+/* 桌機側欄的收合狀態存在 localStorage。要在畫面畫出來之前就套上，
+   否則會先看到側欄再收起來閃一下。Safari 私密模式存取 localStorage 會丟例外，所以包 try。 */
+try { if (localStorage.getItem('nav-collapsed') === '1') document.body.classList.add('nav-collapsed'); } catch (e) {}
+</script>
 
-<button id="menuToggle" class="menu-toggle" aria-label="開啟章節選單">☰</button>
+<button id="menuToggle" class="menu-toggle" type="button" aria-label="開啟章節選單" aria-expanded="true" title="開啟章節選單">☰</button>
 <div id="scrim" class="scrim"></div>
 
 <div class="layout">
@@ -16,9 +21,12 @@
   <aside class="sidebar">
     <div class="sb-head">
       <h1><a id="homeLink" href="#" style="color:inherit;text-decoration:none">國小五年級 互動教具</a></h1>
-      <p class="sub">數學・自然　115 學年度<br>數學 南一／自然 康軒</p>
+      <p class="sub">數學・自然　115 學年度<br>數學 南一／自然 康軒 <span id="appVersion" class="ver"></span></p>
+      <!-- 只在桌機顯示；手機用 ☰ 抽屜，點外面就關 -->
+      <button id="sbCollapse" class="sb-collapse" type="button" aria-label="收起選單" title="收起選單">◀</button>
     </div>
     <input id="search" class="sb-search" type="search" placeholder="搜尋單元或課綱條目（例：分數、S-5-7）" autocomplete="off">
+    <button id="practiceLink" class="sb-practice" type="button">✏️ 練習區 <span>只有題目，專心做</span></button>
     <nav id="tree" class="sb-tree"></nav>
   </aside>
 
@@ -31,6 +39,7 @@
 <script src="vendor/OrbitControls.js"></script>
 
 <!-- 資料與共用工具 -->
+<script src="js/version.js"></script>
 <script src="js/curriculum.js"></script>
 <script src="js/kit.js"></script>
 

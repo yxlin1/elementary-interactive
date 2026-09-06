@@ -180,7 +180,125 @@ Kit.register('m5b-u1', {
   ],
 
   quiz: function () {
-    const type = Kit.pick(['v', 'v', 'missing', 'surface']);
+    // 題型依均一「五下第五單元 體積」小節：體積公式／正方體／底面積×高／
+    // 立方公尺與換算／邊長有兩種單位／複合形體
+    const type = Kit.pick(['v', 'v', 'missing', 'surface', 'cube', 'unit', 'mixedunit', 'composite', 'composite', 'baseArea', 'unitConcept']);
+    // 千分位逗號，讓 1000000 讀得出來
+    const sep = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    if (type === 'cube') {
+      const s = Kit.randInt(2, 12);
+      return {
+        q: '一個<b>正方體</b>的邊長是 <b>' + s + '</b> 公分。體積是多少立方公分？',
+        input: 'number', answer: s * s * s, unit: '立方公分',
+        steps: '正方體的長、寬、高都一樣長：' + s + ' × ' + s + ' × ' + s + '<br>' +
+          '一層 ' + s + ' × ' + s + ' ＝ ' + s * s + ' 個，疊 ' + s + ' 層 → ' + s * s + ' × ' + s + ' ＝ <b>' + s * s * s + '</b> 立方公分'
+      };
+    }
+
+    if (type === 'unit') {
+      const toSmall = Math.random() < .5;
+      const n = Kit.pick([1, 2, 3, 4, 5, 0.5, 1.5, 2.5]);
+      const cm3 = Math.round(n * 1000000);
+      return toSmall ? {
+        q: '<b>' + n + ' 立方公尺</b>等於多少立方公分？',
+        input: 'number', answer: cm3, unit: '立方公分',
+        steps: '1 公尺 ＝ 100 公分，所以 1 立方公尺 ＝ 100 × 100 × 100 ＝ <b>1,000,000</b> 立方公分（一百萬）。<br>' +
+          n + ' × 1,000,000 ＝ <b>' + sep(cm3) + '</b> 立方公分<br>' +
+          '<span style="color:var(--muted)">⚠️ 不是 100 倍也不是 10,000 倍——長、寬、高三個方向都要 ×100。</span>'
+      } : {
+        q: '<b>' + sep(cm3) + ' 立方公分</b>等於多少立方公尺？',
+        input: 'number', answer: n, tolerance: 1e-9, unit: '立方公尺',
+        steps: '1 立方公尺 ＝ 1,000,000 立方公分。<br>' +
+          sep(cm3) + ' ÷ 1,000,000 ＝ <b>' + n + '</b> 立方公尺（小數點向左移 6 位）'
+      };
+    }
+
+    if (type === 'mixedunit') {
+      const m = Kit.randInt(1, 3), w = Kit.randInt(1, 9) * 10, h = Kit.randInt(1, 9) * 10;
+      const ans = m * 100 * w * h;
+      return {
+        q: '一個長方體木箱，長 <b>' + m + ' 公尺</b>、寬 <b>' + w + ' 公分</b>、高 <b>' + h + ' 公分</b>。體積是多少<b>立方公分</b>？',
+        input: 'number', answer: ans, unit: '立方公分',
+        steps: '單位不一樣<b>不能直接乘</b>，先把公尺換成公分：' + m + ' 公尺 ＝ <b>' + m * 100 + '</b> 公分<br>' +
+          m * 100 + ' × ' + w + ' × ' + h + ' ＝ <b>' + sep(ans) + '</b> 立方公分'
+      };
+    }
+
+    if (type === 'composite') {
+      const big = Kit.randInt(6, 12), bw = Kit.randInt(4, 9), bh = Kit.randInt(2, 5);
+      if (Math.random() < .5) {
+        // L 形：下層 + 上層
+        const tl = Kit.randInt(2, big - 2), tw = bw, th = Kit.randInt(2, 5);
+        const v1 = big * bw * bh, v2 = tl * tw * th;
+        return {
+          q: '一個 L 形積木由兩個長方體疊成：下層長 <b>' + big + '</b>、寬 <b>' + bw + '</b>、高 <b>' + bh + '</b> 公分；' +
+            '上層長 <b>' + tl + '</b>、寬 <b>' + tw + '</b>、高 <b>' + th + '</b> 公分，疊在下層上面。整塊積木的體積是多少立方公分？',
+          input: 'number', answer: v1 + v2, unit: '立方公分',
+          steps: '複合形體：<b>切成兩塊分別算，再加起來</b>。<br>' +
+            '下層 ' + big + ' × ' + bw + ' × ' + bh + ' ＝ ' + v1 + '<br>' +
+            '上層 ' + tl + ' × ' + tw + ' × ' + th + ' ＝ ' + v2 + '<br>' +
+            v1 + ' ＋ ' + v2 + ' ＝ <b>' + (v1 + v2) + '</b> 立方公分'
+        };
+      }
+      // 挖洞：大的減小的
+      const hl = Kit.randInt(1, big - 2), hw = Kit.randInt(1, bw - 2), hh = bh;
+      const v1 = big * bw * bh, v2 = hl * hw * hh;
+      return {
+        q: '一塊長 <b>' + big + '</b>、寬 <b>' + bw + '</b>、高 <b>' + bh + '</b> 公分的長方體木塊，從上面挖穿一個長 <b>' + hl + '</b>、寬 <b>' + hw +
+          '</b> 公分的長方形洞（洞的高和木塊一樣是 ' + hh + ' 公分）。剩下的木塊體積是多少立方公分？',
+        input: 'number', answer: v1 - v2, unit: '立方公分',
+        steps: '挖掉的形狀也是長方體 → <b>大的減小的</b>。<br>' +
+          '原本 ' + big + ' × ' + bw + ' × ' + bh + ' ＝ ' + v1 + '<br>' +
+          '挖掉 ' + hl + ' × ' + hw + ' × ' + hh + ' ＝ ' + v2 + '<br>' +
+          v1 + ' － ' + v2 + ' ＝ <b>' + (v1 - v2) + '</b> 立方公分'
+      };
+    }
+
+    if (type === 'baseArea') {
+      // 注意：原本的 a、b、c 在後面才宣告，這裡自己抽
+      const A = Kit.randInt(2, 9) * Kit.randInt(2, 9), h = Kit.randInt(2, 9);
+      if (Math.random() < .5) {
+        return {
+          q: '一個長方體的<b>底面積</b>是 <b>' + A + '</b> 平方公分，高 <b>' + h + '</b> 公分。體積是多少立方公分？',
+          input: 'number', answer: A * h, unit: '立方公分',
+          steps: '長 × 寬 就是底面積，所以體積 ＝ <b>底面積 × 高</b>。<br>' + A + ' × ' + h + ' ＝ <b>' + A * h + '</b> 立方公分<br>' +
+            '（想成：底面那一層有 ' + A + ' 個小方塊，疊了 ' + h + ' 層。）'
+        };
+      }
+      return {
+        q: '一個長方體的體積是 <b>' + A * h + '</b> 立方公分，<b>底面積</b>是 <b>' + A + '</b> 平方公分。高是幾公分？',
+        input: 'number', answer: h, unit: '公分',
+        steps: '體積 ＝ 底面積 × 高，反過來 <b>高 ＝ 體積 ÷ 底面積</b>。<br>' + A * h + ' ÷ ' + A + ' ＝ <b>' + h + '</b> 公分'
+      };
+    }
+
+    if (type === 'unitConcept') {
+      const which = Kit.pick(['m3', 'which']);
+      if (which === 'm3') {
+        const o = Kit.shuffle([
+          { t: '1,000,000 立方公分', ok: true }, { t: '100 立方公分', ok: false },
+          { t: '10,000 立方公分', ok: false }, { t: '1,000 立方公分', ok: false }
+        ]);
+        return {
+          q: '<b>1 立方公尺</b>是多少立方公分？',
+          choices: o.map(x => x.t), answer: o.findIndex(x => x.ok),
+          steps: '1 立方公尺是邊長 1 公尺（＝100 公分）的正方體。<br>100 × 100 × 100 ＝ <b>1,000,000</b> 立方公分。<br>' +
+            '<span style="color:var(--muted)">長度差 100 倍，面積差 100×100 倍，體積差 100×100×100 倍。</span>'
+        };
+      }
+      const o = Kit.shuffle([
+        { t: '教室裡的大冰箱', ok: true }, { t: '一個牛奶盒', ok: false },
+        { t: '一顆骰子', ok: false }, { t: '一本課本', ok: false }
+      ]);
+      return {
+        q: '下面哪一個東西的體積<b>最接近 1 立方公尺</b>？',
+        choices: o.map(x => x.t), answer: o.findIndex(x => x.ok),
+        steps: '1 立方公尺 ＝ 邊長 1 公尺的正方體，大約是一台大冰箱、或一張學生課桌底下的空間。<br>' +
+          '牛奶盒約 1000 立方公分（1 公升）、骰子約 1～8 立方公分、課本約 500 立方公分——都差非常多。'
+      };
+    }
+
     const a = Kit.randInt(2, 9), b = Kit.randInt(2, 9), c = Kit.randInt(2, 9);
 
     if (type === 'v') {

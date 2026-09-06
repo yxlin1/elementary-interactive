@@ -297,7 +297,123 @@ Kit.register('m5b-u2', {
   ],
 
   quiz: function () {
-    const type = Kit.pick(['mul', 'mul', 'bigger', 'intdiv', 'fdiv']);
+    // 題型依均一「五下第一單元 分數的計算」1-1～1-5：整數相除結果是帶分數／整數的分數倍／
+    // 帶分數乘整數／「的」的應用題／長方形面積／分數除以整數的應用
+    const type = Kit.pick(['mul', 'mul', 'bigger', 'intdiv', 'fdiv', 'intMul', 'ofWord', 'mixedMul', 'areaFrac', 'divWord', 'intDivMixed']);
+    function fr(n, d) {
+      if (n === 0) return '0';
+      const g = Kit.gcd(n, d); n /= g; d /= g;
+      if (d === 1) return String(n);
+      if (n < d) return n + '/' + d;
+      const w = Math.floor(n / d), r = n - w * d;
+      return r ? w + '又' + r + '/' + d : String(w);
+    }
+    function opts(items, pad) {
+      items.sort((x, y) => (y.ok ? 1 : 0) - (x.ok ? 1 : 0));
+      const seen = {}, out = [];
+      items.forEach(it => { const k = it.v.toFixed(6); if (!seen[k]) { seen[k] = 1; out.push(it); } });
+      for (let i = 1; out.length < 4 && pad && i < 12; i++) { const c = pad(i); if (!c) continue; const k = c.v.toFixed(6); if (!seen[k]) { seen[k] = 1; out.push(c); } }
+      const sh = Kit.shuffle(out);
+      return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) };
+    }
+    const fItem = (n, d, ok) => ({ v: n / d, t: fr(n, d), ok: !!ok });
+    function simpleFrac(d) { let n; do { n = Kit.randInt(1, d - 1); } while (Kit.gcd(n, d) !== 1); return { n: n, d: d }; }
+
+    if (type === 'intMul') {
+      const f = simpleFrac(Kit.pick([2, 3, 4, 5, 6, 8]));
+      const N = f.d * Kit.randInt(2, 6);            // 讓答案是整數
+      const ctx = Kit.pick([
+        '有 <b>' + N + '</b> 顆糖，拿走其中的 <b>' + fr(f.n, f.d) + '</b>，拿走幾顆？',
+        '一條 <b>' + N + '</b> 公尺的繩子，用掉全長的 <b>' + fr(f.n, f.d) + '</b>，用掉幾公尺？',
+        '<b>' + N + ' × ' + fr(f.n, f.d) + '</b> ＝ ?'
+      ]);
+      return {
+        q: ctx,
+        input: 'number', answer: N * f.n / f.d,
+        steps: '「' + N + ' 的 ' + fr(f.n, f.d) + '」就是 <b>' + N + ' × ' + fr(f.n, f.d) + '</b>。<br>' +
+          '先把 ' + N + ' 平分成 ' + f.d + ' 份，一份是 ' + N + ' ÷ ' + f.d + ' ＝ ' + N / f.d + '，取 ' + f.n + ' 份：' + N / f.d + ' × ' + f.n + ' ＝ <b>' + N * f.n / f.d + '</b><br>' +
+          '<span style="color:var(--muted)">也可以先約分：' + N + ' 和分母 ' + f.d + ' 同除以 ' + f.d + '，再乘分子。</span>'
+      };
+    }
+
+    if (type === 'ofWord') {
+      const A = simpleFrac(Kit.pick([2, 3, 4, 5, 6])), B = simpleFrac(Kit.pick([2, 3, 4, 5]));
+      const num = A.n * B.n, den = A.d * B.d;
+      const ctx = Kit.pick([
+        { q: '一條繩子長 <b>' + fr(A.n, A.d) + '</b> 公尺，用掉它的 <b>' + fr(B.n, B.d) + '</b>。用掉幾公尺？', u: '公尺' },
+        { q: '一塊蛋糕剩下 <b>' + fr(A.n, A.d) + '</b> 個，小明吃掉剩下的 <b>' + fr(B.n, B.d) + '</b>。小明吃了幾個蛋糕？', u: '個' },
+        { q: '一桶水有 <b>' + fr(A.n, A.d) + '</b> 公升，倒出其中的 <b>' + fr(B.n, B.d) + '</b>。倒出幾公升？', u: '公升' }
+      ]);
+      const o = opts([
+        fItem(num, den, true),
+        fItem(A.n * B.d + B.n * A.d, A.d * B.d),    // 誤用加法
+        fItem(A.n * B.d, A.d * B.n),                // 除反了
+        fItem(num, A.d)                             // 只乘分子
+      ], i => fItem(num + i, den));
+      return {
+        q: ctx.q,
+        choices: o.choices, answer: o.answer,
+        steps: '「甲的幾分之幾」→ <b>甲 × 幾分之幾</b>：' + fr(A.n, A.d) + ' × ' + fr(B.n, B.d) + '<br>' +
+          '分子乘分子、分母乘分母：' + A.n + '×' + B.n + ' / ' + A.d + '×' + B.d + ' ＝ ' + num + '/' + den + (fr(num, den) !== num + '/' + den ? ' ＝ <b>' + fr(num, den) + '</b>' : '') + ' ' + ctx.u + '<br>' +
+          '<span style="color:var(--muted)">取一部分的一部分，答案一定比 ' + fr(A.n, A.d) + ' 小。</span>'
+      };
+    }
+
+    if (type === 'mixedMul') {
+      const d = Kit.pick([2, 3, 4, 5]), w = Kit.randInt(1, 3), f = simpleFrac(d);
+      const k = d * Kit.randInt(1, 3);                // 整數是分母的倍數 → 答案是整數
+      const ans = w * k + f.n * k / d;
+      return {
+        q: '<b>' + w + '又' + fr(f.n, d) + ' × ' + k + '</b> ＝ ?',
+        input: 'number', answer: ans,
+        steps: '帶分數乘整數，兩種算法：<br>' +
+          '① <b>分開乘</b>（分配律）：整數 ' + w + ' × ' + k + ' ＝ ' + w * k + '；分數 ' + fr(f.n, d) + ' × ' + k + ' ＝ ' + fr(f.n * k, d) + '；合起來 <b>' + ans + '</b><br>' +
+          '② <b>先換假分數</b>：' + w + '又' + fr(f.n, d) + ' ＝ ' + (w * d + f.n) + '/' + d + '，' + (w * d + f.n) + '/' + d + ' × ' + k + ' ＝ ' + ((w * d + f.n) * k) + '/' + d + ' ＝ <b>' + ans + '</b><br>' +
+          '<span style="color:var(--muted)">⚠️ 常見錯誤：只把整數部分乘 ' + k + '，分數忘了乘。</span>'
+      };
+    }
+
+    if (type === 'areaFrac') {
+      const A = simpleFrac(Kit.pick([2, 3, 4, 5])), B = simpleFrac(Kit.pick([2, 3, 4, 5, 6]));
+      const num = A.n * B.n, den = A.d * B.d;
+      const o = opts([fItem(num, den, true), fItem(A.n * B.d + B.n * A.d, den), fItem(2 * (A.n * B.d + B.n * A.d), den), fItem(num, A.d)], i => fItem(num + i, den));
+      return {
+        q: '一張長方形色紙，長 <b>' + fr(A.n, A.d) + '</b> 公尺、寬 <b>' + fr(B.n, B.d) + '</b> 公尺。面積是多少平方公尺？',
+        choices: o.choices, answer: o.answer,
+        steps: '面積 ＝ 長 × 寬，分數一樣適用：' + fr(A.n, A.d) + ' × ' + fr(B.n, B.d) + ' ＝ ' + num + '/' + den + (fr(num, den) !== num + '/' + den ? ' ＝ <b>' + fr(num, den) + '</b>' : '') + ' 平方公尺<br>' +
+          '<span style="color:var(--muted)">想像 1 平方公尺的正方形，橫切 ' + A.d + ' 份取 ' + A.n + '、直切 ' + B.d + ' 份取 ' + B.n + '，重疊的格子就是 ' + num + ' 格（共 ' + den + ' 格）。</span>'
+      };
+    }
+
+    if (type === 'divWord') {
+      const f = simpleFrac(Kit.pick([2, 3, 4, 5, 6])), k = Kit.randInt(2, 5);
+      const ctx = Kit.pick([
+        { q: '<b>' + fr(f.n, f.d) + '</b> 公升的果汁平分給 <b>' + k + '</b> 個人，每人喝到幾公升？', u: '公升' },
+        { q: '一條 <b>' + fr(f.n, f.d) + '</b> 公尺的緞帶剪成 <b>' + k + '</b> 段一樣長，每段幾公尺？', u: '公尺' },
+        { q: '<b>' + fr(f.n, f.d) + '</b> 公斤的麵粉平分裝成 <b>' + k + '</b> 袋，每袋幾公斤？', u: '公斤' }
+      ]);
+      const o = opts([fItem(f.n, f.d * k, true), fItem(f.n * k, f.d), fItem(Math.max(1, f.n - k) || 1, f.d), fItem(f.n, Math.abs(f.d - k) || 1)], i => fItem(f.n + i, f.d * k));
+      return {
+        q: ctx.q,
+        choices: o.choices, answer: o.answer,
+        steps: '「平分成 ' + k + ' 份、每份多少」→ <b>÷ ' + k + '</b>，也就是 <b>× 1/' + k + '</b>：<br>' +
+          fr(f.n, f.d) + ' ÷ ' + k + ' ＝ ' + fr(f.n, f.d) + ' × 1/' + k + ' ＝ ' + f.n + '/' + (f.d * k) + (fr(f.n, f.d * k) !== f.n + '/' + (f.d * k) ? ' ＝ <b>' + fr(f.n, f.d * k) + '</b>' : '') + ' ' + ctx.u + '<br>' +
+          '<span style="color:var(--muted)">分母變大（每份變小），分子不動。</span>'
+      };
+    }
+
+    if (type === 'intDivMixed') {
+      const q0 = Kit.randInt(2, 6), p0 = q0 * Kit.randInt(1, 3) + Kit.randInt(1, q0 - 1);   // 一定除不盡且大於 1
+      const o = opts([fItem(p0, q0, true), fItem(q0, p0), fItem(Math.floor(p0 / q0) * q0 + (p0 % q0), q0 * 2), fItem(Math.floor(p0 / q0) * q0, q0)], i => fItem(p0 + i, q0));
+      return {
+        q: '<b>' + p0 + '</b> 個蛋糕平分給 <b>' + q0 + '</b> 個人，每人分到幾個？（用<b>帶分數</b>表示）',
+        choices: o.choices, answer: o.answer,
+        steps: p0 + ' ÷ ' + q0 + ' ＝ <b>' + p0 + '/' + q0 + '</b>（分數線就是除號）<br>' +
+          '先每人拿 ' + Math.floor(p0 / q0) + ' 個整的，剩 ' + (p0 % q0) + ' 個再各切成 ' + q0 + ' 塊平分，每人再拿 ' + (p0 % q0) + '/' + q0 + '<br>' +
+          '合起來 <b>' + fr(p0, q0) + '</b> 個'
+      };
+    }
+
 
     if (type === 'mul') {
       const b1 = Kit.pick([2, 3, 4, 5, 6]), d1 = Kit.pick([2, 3, 4, 5, 6]);

@@ -217,7 +217,105 @@ Kit.register('m5a-u9', {
   ],
 
   quiz: function () {
-    const kind = Kit.pick(['para', 'tri', 'trap', 'why']);
+    // 題型依均一「五上第八單元」8-1～8-4：求底或高／直角三角形／等底等高／面積的變化／複合圖形
+    const kind = Kit.pick(['para', 'tri', 'trap', 'why', 'findDim', 'findDim', 'right', 'equalBase', 'composite', 'scale']);
+    function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+
+    if (kind === 'findDim') {
+      const which = Kit.pick(['para', 'tri', 'trap']);
+      const B = Kit.randInt(4, 15), H = Kit.randInt(3, 12), T = Kit.randInt(2, B - 1);
+      if (which === 'para') {
+        return {
+          q: '一個平行四邊形的面積是 <b>' + B * H + '</b> 平方公分，底 <b>' + B + '</b> 公分。高是幾公分？',
+          input: 'number', answer: H, unit: '公分',
+          steps: '面積 ＝ 底 × 高，反過來 <b>高 ＝ 面積 ÷ 底</b>。<br>' + B * H + ' ÷ ' + B + ' ＝ <b>' + H + '</b> 公分'
+        };
+      }
+      if (which === 'tri') {
+        return {
+          q: '一個三角形的面積是 <b>' + B * H / 2 + '</b> 平方公分，高 <b>' + H + '</b> 公分。底是幾公分？',
+          input: 'number', answer: B, tolerance: 0.001, unit: '公分',
+          steps: '三角形面積 ＝ 底 × 高 ÷ 2，所以先把面積 <b>× 2</b> 變回平行四邊形：' + B * H / 2 + ' × 2 ＝ ' + B * H + '<br>' +
+            '再 ÷ 高：' + B * H + ' ÷ ' + H + ' ＝ <b>' + B + '</b> 公分<br>' +
+            '<span style="color:var(--muted)">⚠️ 忘記 ×2 是最常見的錯。</span>'
+        };
+      }
+      const area = (T + B) * H / 2;
+      return {
+        q: '一個梯形的面積是 <b>' + area + '</b> 平方公分，上底 <b>' + T + '</b> 公分、高 <b>' + H + '</b> 公分。下底是幾公分？',
+        input: 'number', answer: B, tolerance: 0.001, unit: '公分',
+        steps: '梯形面積 ＝ (上底 ＋ 下底) × 高 ÷ 2。倒回去：<br>' +
+          '① 面積 × 2 ＝ ' + area * 2 + '　② ÷ 高 ' + H + ' ＝ ' + (T + B) + '（這是上底＋下底）<br>' +
+          '③ 減掉上底：' + (T + B) + ' － ' + T + ' ＝ <b>' + B + '</b> 公分'
+      };
+    }
+
+    if (kind === 'right') {
+      const a = Kit.randInt(3, 12), b = Kit.randInt(3, 12);
+      const hyp = Math.round(Math.sqrt(a * a + b * b) * 10) / 10;
+      return {
+        q: '一個<b>直角三角形</b>，兩條直角邊分別是 <b>' + a + '</b> 公分和 <b>' + b + '</b> 公分，最長的斜邊約 ' + hyp + ' 公分。面積是多少平方公分？',
+        input: 'number', answer: a * b / 2, tolerance: 0.001, unit: '平方公分',
+        steps: '直角三角形的兩條直角邊<b>互為底和高</b>（它們剛好垂直）。<br>' +
+          a + ' × ' + b + ' ÷ 2 ＝ <b>' + a * b / 2 + '</b> 平方公分<br>' +
+          '<span style="color:var(--muted)">斜邊 ' + hyp + ' 是陷阱，用不到。</span>'
+      };
+    }
+
+    if (kind === 'equalBase') {
+      if (Math.random() < .5) {
+        const o = shuffled([{ t: '一半', ok: true }, { t: '一樣大' }, { t: '2 倍' }, { t: '不一定' }]);
+        return {
+          q: '一個三角形和一個平行四邊形<b>等底等高</b>。三角形的面積是平行四邊形的幾倍？',
+          choices: o.choices, answer: o.answer,
+          steps: '平行四邊形 ＝ 底 × 高；三角形 ＝ 底 × 高 ÷ 2。底和高都一樣，所以三角形剛好是<b>一半</b>。<br>' +
+            '（兩個一樣的三角形可以拼成那個平行四邊形。）'
+        };
+      }
+      const o = shuffled([{ t: '一樣大', ok: true }, { t: '比較尖的那個比較大' }, { t: '比較矮胖的那個比較大' }, { t: '無法比較' }]);
+      return {
+        q: '兩個三角形<b>形狀不同</b>，但底一樣長、高也一樣。它們的面積誰大？',
+        choices: o.choices, answer: o.answer,
+        steps: '面積只跟<b>底和高</b>有關，跟形狀（尖不尖、歪不歪）無關。<br>' +
+          '底 × 高 ÷ 2 一樣 → 面積<b>一樣大</b>。<br>' +
+          '<span style="color:var(--muted)">用上面的教具把三角形頂點左右拖，面積不會變。</span>'
+      };
+    }
+
+    if (kind === 'composite') {
+      const L = Kit.randInt(6, 14), W = Kit.randInt(4, 10), h = Kit.randInt(2, W);
+      const rect = L * W, tri = L * h / 2;
+      if (Math.random() < .5) {
+        return {
+          q: '一張長 <b>' + L + '</b> 公分、寬 <b>' + W + '</b> 公分的長方形紙，剪掉一個底 <b>' + L + '</b> 公分、高 <b>' + h + '</b> 公分的三角形。剩下的面積是多少平方公分？',
+          input: 'number', answer: rect - tri, tolerance: 0.001, unit: '平方公分',
+          steps: '複合圖形：<b>大的減小的</b>。<br>長方形 ' + L + ' × ' + W + ' ＝ ' + rect + '<br>三角形 ' + L + ' × ' + h + ' ÷ 2 ＝ ' + tri + '<br>' +
+            rect + ' － ' + tri + ' ＝ <b>' + (rect - tri) + '</b> 平方公分'
+        };
+      }
+      return {
+        q: '一個圖形由一個長 <b>' + L + '</b>、寬 <b>' + W + '</b> 公分的長方形，加上一個底 <b>' + L + '</b>、高 <b>' + h + '</b> 公分的三角形（像房子加屋頂）組成。總面積是多少平方公分？',
+        input: 'number', answer: rect + tri, tolerance: 0.001, unit: '平方公分',
+        steps: '複合圖形：<b>切成認識的形狀分別算，再加起來</b>。<br>長方形 ' + L + ' × ' + W + ' ＝ ' + rect + '<br>三角形 ' + L + ' × ' + h + ' ÷ 2 ＝ ' + tri + '<br>' +
+          rect + ' ＋ ' + tri + ' ＝ <b>' + (rect + tri) + '</b> 平方公分'
+      };
+    }
+
+    if (kind === 'scale') {
+      const cases = [
+        { txt: '底變成 2 倍，高不變', k: 2, why: '面積 ＝ 底 × 高 ÷ 2，底 ×2 → 面積也 ×2' },
+        { txt: '高變成 3 倍，底不變', k: 3, why: '高 ×3 → 面積也 ×3' },
+        { txt: '底和高都變成 2 倍', k: 4, why: '底 ×2、高 ×2 → 面積 ×2×2 ＝ ×4（不是 ×2！）' },
+        { txt: '底變成 2 倍，高變成一半', k: 1, why: '×2 再 ×1/2 剛好抵消 → 面積不變（1 倍）' }
+      ];
+      const c = Kit.pick(cases);
+      return {
+        q: '一個三角形，<b>' + c.txt + '</b>，面積會變成原來的幾倍？',
+        input: 'number', answer: c.k, unit: '倍',
+        steps: c.why + '。<br>試試看：底 4、高 6 → 面積 12；' + c.txt + ' → 面積 ' + 12 * c.k + '，是 <b>' + c.k + '</b> 倍。'
+      };
+    }
+
     const b = Kit.randInt(4, 15), h = Kit.randInt(3, 12), tt = Kit.randInt(2, b - 1);
 
     if (kind === 'para') {

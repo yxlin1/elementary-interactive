@@ -211,7 +211,76 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['list', 'gcd', 'word', 'concept']);
+      // 題型依均一「五上第二單元 因數和倍數」2-1～2-3：整除／成對的因數／利用乘法找因數／
+      // 公因數／最大公因數應用題。課綱 N-5-3 備註不用短除法，所以全部「列出來找」。
+      const type = Kit.pick(['list', 'gcd', 'word', 'concept', 'pairFill', 'isFactor', 'commonCount', 'rectWord', 'onlyTwo']);
+      function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+
+      if (type === 'pairFill') {
+        const n = Kit.pick([18, 24, 28, 30, 32, 36, 40, 42, 45, 48, 54, 56]);
+        const fs = factorsOf(n).filter(f => f !== 1 && f !== n);
+        const f = Kit.pick(fs);
+        return {
+          q: '<b>' + n + ' ＝ ' + f + ' × □</b>，□ 是多少？（' + f + ' 和 □ 是 ' + n + ' 的一對因數）',
+          input: 'number', answer: n / f,
+          steps: '因數是<b>成對</b>出現的：' + f + ' 能整除 ' + n + '，' + n + ' ÷ ' + f + ' ＝ <b>' + (n / f) + '</b>，' + (n / f) + ' 也是 ' + n + ' 的因數。<br>' +
+            '排成長方形來想：' + f + ' 排 × ' + (n / f) + ' 個 ＝ ' + n + '。<br>' +
+            n + ' 的所有因數：' + factorsOf(n).join('、')
+        };
+      }
+
+      if (type === 'isFactor') {
+        const f = Kit.randInt(2, 12);
+        const yes = Math.random() < .5;
+        const n = yes ? f * Kit.randInt(3, 9) : f * Kit.randInt(3, 9) + Kit.randInt(1, f - 1);
+        return {
+          q: '<b>' + f + '</b> 是 <b>' + n + '</b> 的因數嗎？',
+          choices: ['是', '不是'], answer: n % f === 0 ? 0 : 1,
+          steps: n + ' ÷ ' + f + ' ＝ ' + Math.floor(n / f) + (n % f ? ' 餘 ' + (n % f) : '') + '<br>' +
+            (n % f === 0
+              ? '<b>整除</b>（沒有餘數）→ ' + f + ' <b>是</b> ' + n + ' 的因數。也可以說 ' + n + ' 是 ' + f + ' 的倍數。'
+              : '有餘數 → ' + f + ' <b>不是</b> ' + n + ' 的因數。' + n + ' 個方塊排成每排 ' + f + ' 個，最後一排會不滿。')
+        };
+      }
+
+      if (type === 'commonCount') {
+        const a = Kit.pick([12, 16, 18, 20, 24, 30, 36]), b = Kit.pick([8, 12, 18, 24, 27, 40, 45]);
+        const cf = commonFactors(a, b);
+        return {
+          q: '<b>' + a + '</b> 和 <b>' + b + '</b> 的公因數總共有幾個？',
+          input: 'number', answer: cf.length, unit: '個',
+          steps: a + ' 的因數：' + factorsOf(a).join('、') + '<br>' + b + ' 的因數：' + factorsOf(b).join('、') + '<br>' +
+            '兩邊都出現的：<b>' + cf.join('、') + '</b>，共 <b>' + cf.length + '</b> 個。<br>' +
+            '<span style="color:var(--muted)">小訣竅：公因數一定都是最大公因數 ' + Kit.gcd(a, b) + ' 的因數。</span>'
+        };
+      }
+
+      if (type === 'rectWord') {
+        const n = Kit.pick([12, 16, 18, 20, 24, 30, 36, 48]);
+        const fs = factorsOf(n);
+        const pairs = fs.filter(f => f * f <= n).map(f => f + '×' + (n / f));
+        return {
+          q: '用 <b>' + n + '</b> 個一樣的小正方形磁磚拼成一個長方形（正方形也算），全部用完不剩，有幾種不同的拼法？（' + '3×4 和 4×3 算同一種）',
+          input: 'number', answer: pairs.length, unit: '種',
+          steps: '每一種拼法的長和寬就是 ' + n + ' 的一對因數：<b>' + pairs.join('、') + '</b>，共 <b>' + pairs.length + '</b> 種。<br>' +
+            n + ' 的因數有 ' + fs.length + ' 個，兩兩配對' + (Math.sqrt(n) % 1 === 0 ? '（' + Math.sqrt(n) + '×' + Math.sqrt(n) + ' 自己配自己）' : '') + '。'
+        };
+      }
+
+      if (type === 'onlyTwo') {
+        const primes = [7, 11, 13, 17, 19, 23, 29, 31];
+        const comps = [9, 15, 21, 25, 27, 33, 35, 39, 49];
+        const pr = Kit.pick(primes), cs = Kit.shuffle(comps).slice(0, 3);
+        const o = shuffled([{ t: String(pr), ok: true }].concat(cs.map(c => ({ t: String(c) }))));
+        return {
+          q: '下面哪一個數的因數<b>只有 1 和它自己</b>（只排得出「一長條」）？',
+          choices: o.choices, answer: o.answer,
+          steps: cs.map(c => c + ' ＝ ' + factorsOf(c).filter(f => f !== 1 && f !== c)[0] + ' × ' + (c / factorsOf(c).filter(f => f !== 1 && f !== c)[0]) + '，還有別的排法').join('；') + '。<br>' +
+            pr + ' 只能排成 1 × ' + pr + '，因數只有 <b>1 和 ' + pr + '</b> 兩個。<br>' +
+            '<span style="color:var(--muted)">這種數以後會學到叫「質數」，現在先會判斷就好。</span>'
+        };
+      }
+
 
       if (type === 'list') {
         const n = Kit.pick([12, 16, 18, 20, 24, 28, 30, 36, 40, 45]);
@@ -386,7 +455,76 @@
     ],
 
     quiz: function () {
-      const type = Kit.pick(['lcm', 'word', 'concept', 'ismultiple']);
+      // 題型依均一「五上第二單元」2-4～2-6：倍數／公倍數與最小公倍數／2、5、10 的倍數判別
+      const type = Kit.pick(['lcm', 'word', 'concept', 'ismultiple', 'nth', 'countRange', 'feature', 'boxWord', 'commonInRange']);
+      function shuffled(items) { const sh = Kit.shuffle(items); return { choices: sh.map(o => o.t), answer: sh.findIndex(o => o.ok) }; }
+
+      if (type === 'nth') {
+        const b = Kit.randInt(3, 12), k = Kit.randInt(3, 9);
+        return {
+          q: '<b>' + b + '</b> 的倍數由小到大排，第 <b>' + k + '</b> 個是多少？',
+          input: 'number', answer: b * k,
+          steps: b + ' 的倍數：' + Array.from({ length: k }, (_, i) => (i + 1) * b).join('、') + '<br>' +
+            '第 ' + k + ' 個就是 ' + b + ' × ' + k + ' ＝ <b>' + b * k + '</b>。<br>' +
+            '<span style="color:var(--muted)">第 1 個倍數是它自己（' + b + ' × 1），不是 0。</span>'
+        };
+      }
+
+      if (type === 'countRange') {
+        const b = Kit.randInt(3, 9), N = Kit.pick([30, 40, 50, 60, 80, 100]);
+        const cnt = Math.floor(N / b);
+        return {
+          q: '1 到 <b>' + N + '</b> 之間，<b>' + b + '</b> 的倍數有幾個？',
+          input: 'number', answer: cnt, unit: '個',
+          steps: N + ' ÷ ' + b + ' ＝ ' + cnt + (N % b ? ' 餘 ' + (N % b) : '') + '，所以有 <b>' + cnt + '</b> 個：' +
+            Array.from({ length: Math.min(cnt, 6) }, (_, i) => (i + 1) * b).join('、') + (cnt > 6 ? '…' + cnt * b : '') + '<br>' +
+            '<span style="color:var(--muted)">餘數不算——最後那 ' + (N % b) + ' 個數不夠再湊一個 ' + b + '。</span>'
+        };
+      }
+
+      if (type === 'feature') {
+        const target = Kit.pick([2, 5, 10]);
+        const isM = n => n % target === 0;
+        const nums = [];
+        const pool = Kit.shuffle(Array.from({ length: 80 }, (_, i) => i + 20));
+        const good = pool.find(isM), bads = pool.filter(n => !isM(n)).slice(0, 3);
+        nums.push(good, ...bads);
+        const o = shuffled([{ t: String(good), ok: true }].concat(bads.map(n => ({ t: String(n) }))));
+        const rule = target === 2 ? '個位是 0、2、4、6、8' : target === 5 ? '個位是 0 或 5' : '個位是 0';
+        return {
+          q: '下面哪一個數是 <b>' + target + '</b> 的倍數？（不用一個一個除，看<b>個位數字</b>就知道）',
+          choices: o.choices, answer: o.answer,
+          steps: target + ' 的倍數特徵：<b>' + rule + '</b>。<br>' +
+            good + ' 的個位是 ' + (good % 10) + ' → 是 ' + target + ' 的倍數（' + good + ' ÷ ' + target + ' ＝ ' + good / target + '）。<br>' +
+            bads.map(n => n + ' 的個位是 ' + (n % 10)).join('，') + ' → 都不是。'
+        };
+      }
+
+      if (type === 'boxWord') {
+        const a = Kit.pick([4, 6, 8, 9]), b = Kit.pick([6, 10, 12, 15]);
+        const L = lcm(a, b);
+        return {
+          q: '一袋糖果，每 <b>' + a + '</b> 顆一包剛好分完，每 <b>' + b + '</b> 顆一包也剛好分完。這袋糖<b>至少</b>有幾顆？',
+          input: 'number', answer: L, unit: '顆',
+          steps: '顆數要同時是 ' + a + ' 的倍數和 ' + b + ' 的倍數 → <b>公倍數</b>。<br>' +
+            a + ' 的倍數：' + [1, 2, 3, 4, 5].map(i => i * a).join('、') + '…<br>' + b + ' 的倍數：' + [1, 2, 3, 4].map(i => i * b).join('、') + '…<br>' +
+            '第一個共同的是 <b>' + L + '</b>（最小公倍數）。「至少」就是要最小的。'
+        };
+      }
+
+      if (type === 'commonInRange') {
+        const a2 = Kit.pick([2, 3, 4, 6]), b2 = Kit.pick([3, 4, 5, 6, 8]);
+        const L2 = lcm(a2, b2), N2 = Kit.pick([50, 60, 100]);
+        const cnt2 = Math.floor(N2 / L2);
+        return {
+          q: '1 到 <b>' + N2 + '</b> 之間，<b>' + a2 + '</b> 和 <b>' + b2 + '</b> 的公倍數有幾個？',
+          input: 'number', answer: cnt2, unit: '個',
+          steps: '先找最小公倍數：' + a2 + ' 和 ' + b2 + ' 的最小公倍數是 <b>' + L2 + '</b>。<br>' +
+            '所有公倍數都是 ' + L2 + ' 的倍數：' + Array.from({ length: cnt2 }, (_, i) => (i + 1) * L2).join('、') + '<br>' +
+            N2 + ' ÷ ' + L2 + ' ＝ ' + cnt2 + (N2 % L2 ? ' 餘 ' + (N2 % L2) : '') + ' → <b>' + cnt2 + '</b> 個'
+        };
+      }
+
 
       if (type === 'lcm') {
         const a = Kit.randInt(2, 12), b = Kit.randInt(2, 12);
