@@ -30,7 +30,9 @@ for (const id of regIds) {
     let q;
     try { q = def.quiz(); } catch (e) { errs.push('throw: ' + e.message); continue; }
     totalQ++;
-    const where = pattern(q.q);
+    // 語文科的題目每換一個字／單字就變一種句型，用 pattern() 會把樣板數灌水，
+    // 所以出題函式可以自己給 q.tpl 當樣板代號。
+    const where = q.tpl ? '@' + q.tpl : pattern(q.q);
     patCount.set(where, (patCount.get(where) || 0) + 1);
     if (!samples.has(where)) samples.set(where, q);
     if (!q.q) errs.push('empty q');

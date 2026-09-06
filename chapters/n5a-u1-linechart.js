@@ -242,6 +242,9 @@ Kit.register('n5a-u1', {
       const it = Kit.pick(items);
       const opts = ['折線圖', '長條圖'];
       return {
+        /* 八個情境是同一種題目樣板，換的是情境；不給 tpl 的話會被算成八種，
+           首頁的樣板數會隨機在 11～13 之間跳動。 */
+        tpl: 'chartType',
         q: '要呈現「<b>' + it.d + '</b>」，用哪一種圖比較合適？',
         choices: opts, answer: opts.indexOf(it.a),
         steps: '答案：<b>' + it.a + '</b><br>' +
@@ -267,11 +270,18 @@ Kit.register('n5a-u1', {
     }
 
     if (type === 'trend') {
-      const arr = [], n = 6;
-      let v = Kit.randInt(10, 20);
-      for (let i = 0; i < n; i++) { arr.push(v); v += Kit.randInt(-4, 8); }
-      let bi = 1, bd = arr[1] - arr[0];
-      for (let i = 1; i < n; i++) if (arr[i] - arr[i - 1] > bd) { bd = arr[i] - arr[i - 1]; bi = i; }
+      /* 豆苗只會長高或停住，<b>不會變矮</b>，所以每天的變化量不能是負的。
+         另外要保證「長最多的那一天」只有一個，否則會出現兩個都對的答案。 */
+      const n = 6;
+      const step = [];
+      for (let i = 0; i < n - 1; i++) step.push(Kit.randInt(0, 4));
+      const bi = Kit.randInt(1, n - 1);                       // 第 bi 天到第 bi+1 天長最多
+      let other = 0;
+      step.forEach(function (d, k) { if (k !== bi - 1 && d > other) other = d; });
+      step[bi - 1] = other + Kit.randInt(2, 4);
+      const arr = [Kit.randInt(8, 16)];
+      for (let i = 0; i < n - 1; i++) arr.push(arr[i] + step[i]);
+      const bd = step[bi - 1];
       return {
         q: '豆苗每天的高度（公分）：' + arr.join('、') + '<br>' +
           '第幾天到第幾天<b>長得最多</b>？（填後面那一天的天數，例如第 3 天到第 4 天就填 4）',

@@ -18,7 +18,7 @@
   }
 
   /* 科目 → 標籤樣式（數學藍、自然綠、社會橘） */
-  const SUBJ_CLASS = { '數學': 'math', '自然': 'sci', '社會': 'soc' };
+  const SUBJ_CLASS = { '數學': 'math', '自然': 'sci', '社會': 'soc', '國語': 'chi', '英語': 'eng' };
   function subjClass(s) { return SUBJ_CLASS[s] || 'sci'; }
 
   /* ---------------- 左側章節樹 ---------------- */
@@ -406,7 +406,12 @@
     })));
 
     const gradeNames = VISIBLE.map(g => g.grade);
-    const title = gradeNames.join('、') + ' 數學・自然 互動教具';
+    // 科目清單從資料推出來，加了新科目首頁標題會自己跟上
+    const subjSeen = [];
+    VISIBLE.forEach(g => g.books.forEach(b => {
+      if (subjSeen.indexOf(b.subject) < 0) subjSeen.push(b.subject);
+    }));
+    const title = gradeNames.join('、') + ' ' + subjSeen.join('・') + ' 互動教具';
 
     // 只計算「顯示中的章節實際掛到的」條目數，不要拿字典總數充數
     const usedStd = {};
@@ -415,7 +420,7 @@
     const stdCount = Object.keys(usedStd).length;
 
     // 版本表依「顯示中的年級」自動產生，隱藏年級不會出現在這裡
-    const subjects = ['數學', '自然', '社會'];
+    const subjects = subjSeen;
     const verRows = subjects.map(sub => {
       const cells = VISIBLE.map(g => {
         const bk = g.books.filter(b => b.subject === sub);

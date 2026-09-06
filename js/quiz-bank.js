@@ -4,13 +4,13 @@
 const QUIZ_BANK = {
  "generated": "2026-09-06",
  "drawsPerAid": 4000,
- "checked": 156000,
- "recomputed": 5585,
- "aids": 39,
- "templateTotal": 570,
+ "checked": 196000,
+ "recomputed": 5568,
+ "aids": 49,
+ "templateTotal": 628,
  "templates": {
   "m4b-u8": 4,
-  "n5a-u1": 14,
+  "n5a-u1": 4,
   "m5a-u1": 6,
   "m5a-u2": 9,
   "m5a-u3": 9,
@@ -47,6 +47,16 @@ const QUIZ_BANK = {
   "soc5a-u1": 21,
   "soc5a-u2": 15,
   "soc5a-u3": 14,
-  "soc5a-u4": 16
+  "soc5a-u4": 16,
+  "chi5a-u1": 9,
+  "chi5a-u2": 6,
+  "chi5a-u3": 6,
+  "chi5a-u4": 6,
+  "eng5a-u0": 7,
+  "eng5a-u1": 7,
+  "eng5a-u2": 8,
+  "eng5a-u3": 8,
+  "eng5a-u4": 7,
+  "eng5a-u5": 4
  }
 };
